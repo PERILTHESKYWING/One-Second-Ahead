@@ -100,8 +100,6 @@ body[data-theme="light"] .themeSwap i{box-shadow:none;background:var(--chrono)}
 .panel-foot{display:flex;justify-content:space-between;align-items:center;gap:18px;font-size:12.5px;color:var(--faint);flex-wrap:wrap}
 .panel-foot .keys{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .panel-foot .keys span{display:flex;gap:7px;align-items:center}
-
-.shop-body{flex:1;display:grid;grid-template-columns:190px 1fr;gap:32px;min-height:0}
 .rail{display:flex;flex-direction:column;gap:1px;border-right:1px solid var(--edge);padding-right:12px}
 .rail button{text-align:left;padding:11px 12px;border-radius:8px;font-size:14px;font-weight:550;color:var(--mute);
   display:flex;justify-content:space-between;align-items:center;gap:10px;transition:.16s}
@@ -372,9 +370,6 @@ body[data-theme="light"] .cosm canvas{background:rgba(30,50,100,.07)}
    them needing their own rules. */
 .road { display:flex; flex-direction:column; gap:16px; padding:18px 24px 24px;
   overflow:auto; align-content:start; }
-.road-total { text-align:right; }
-.road-total b { display:block; font:750 26px/1 var(--sans); letter-spacing:-.02em; color:var(--chrono); }
-.road-total span { font:600 10px/1 var(--mono); letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
 
 .region { position:relative; border-radius:16px; overflow:hidden;
   /* the road is a flex column inside a fixed-height panel, so a region has
@@ -387,15 +382,9 @@ body[data-theme="light"] .cosm canvas{background:rgba(30,50,100,.07)}
 /* the arena's colour as a spine down its left edge */
 .region::after { content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
   background:var(--tc); opacity:.7; }
-
-.rhead { position:relative; padding:14px 18px 12px 20px; }
-.rmotif { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:.8; }
 .rinfo { position:relative; display:flex; flex-direction:column; gap:4px; }
 .rinfo h3 { margin:0; font:800 20px/1.05 var(--mono); letter-spacing:.03em; }
 .rinfo p { margin:0; font-size:12px; line-height:1.5; opacity:.7; max-width:76ch; }
-.rstat { display:flex; gap:18px; flex-wrap:wrap; margin-top:6px;
-  font:600 10.5px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase; color:var(--faint); }
-.rstat b { color:var(--bone); font-weight:750; }
 .rstat .ladder { color:var(--tc); opacity:.85; }
 
 /* ---- the strip of fifteen ---- */
@@ -458,23 +447,6 @@ body[data-theme="light"] .cosm canvas{background:rgba(30,50,100,.07)}
   background:linear-gradient(180deg,var(--tc),transparent 78%); }
 .region.sealed .rinfo h3 { opacity:.55; }
 .region.sealed .rinfo p { opacity:.45; }
-.fog { position:relative; height:78px; flex:0 0 auto; overflow:hidden; }
-/* The silhouettes have to be worth being curious about, so they are dim and
-   blurred rather than hidden: enough shape to see that something specific
-   lives in there, not enough to identify it. */
-.ghosts { position:absolute; inset:0; display:flex; align-items:center; gap:24px;
-  padding-left:26px; filter:blur(2.2px) saturate(.35) brightness(.9) contrast(1.15); opacity:.5; }
-.ghosts canvas { transform:translateY(calc(var(--k) * 3px - 6px)); }
-/* the sliver of the arena's REAL colour, bleeding across the boundary from
-   behind the fog — the theme arrives before the content does */
-.fog::before { content:""; position:absolute; inset:0; pointer-events:none;
-  background:linear-gradient(90deg,var(--tc),transparent 34%); opacity:.16; }
-.haze { position:absolute; inset:0; display:flex; align-items:center; justify-content:flex-end;
-  padding-right:20px;
-  background:linear-gradient(90deg,transparent,transparent 22%,var(--void) 82%),
-             linear-gradient(180deg,transparent 46%,var(--void)); }
-.haze span { font:700 9px/1 var(--mono); letter-spacing:.24em; text-transform:uppercase;
-  color:var(--tc); opacity:.5; }
 
 /* the Learn tier's teaching line on the level card */
 .lctip { display:none; margin:2px 0 4px; padding:9px 12px; border-radius:9px;
@@ -487,17 +459,11 @@ body[data-theme="light"] .cosm canvas{background:rgba(30,50,100,.07)}
 .lr-title { font:800 clamp(24px,3vw,36px)/1.05 var(--sans); letter-spacing:-.03em; margin:2px 0 18px; }
 .lr-title.good { color:var(--signal); }
 .lr-title.bad { color:var(--threat); }
-.lr-trophy { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-.lr-trophy b { font:750 44px/1 var(--sans); letter-spacing:-.03em; color:var(--chrono); }
-.lr-trophy > span { font:600 10.5px/1 var(--mono); letter-spacing:.14em;
-  text-transform:uppercase; color:var(--faint); }
 .lr-bonus { display:flex; gap:6px; flex-wrap:wrap; width:100%; margin-top:8px; }
 .lr-bonus .bonus { font:700 9.5px/1 var(--mono); letter-spacing:.1em; text-transform:uppercase;
   padding:5px 7px; border-radius:5px; background:rgba(255,214,138,.16); color:var(--chrono); }
 .lr-bonus .bonus.off { background:rgba(255,255,255,.05); color:var(--faint);
   text-transform:none; letter-spacing:.02em; font-family:var(--sans); font-size:11px; }
-.lr-best { margin-top:12px; font-size:12.5px; color:var(--mute); }
-.lr-best b { color:var(--bone); }
 .lr-best.up { color:var(--signal); }
 .lr-best.up b { color:var(--signal); }
 .lr-rewards { display:flex; flex-direction:column; gap:7px; margin-bottom:26px; }
@@ -511,7 +477,6 @@ body[data-theme="light"] .cosm canvas{background:rgba(30,50,100,.07)}
   .road { padding:14px 14px 18px; }
   .strip { padding-left:14px; padding-right:14px; }
   .node { flex-basis:104px; }
-  .rhead { padding-left:14px; }
 }
 
 /* ---- archive ---- */
@@ -583,7 +548,6 @@ body[data-theme="light"] .cosm canvas{background:rgba(30,50,100,.07)}
 #opsLink.on { opacity:.7; color:var(--shard,#ffd68a); }
 body:not(.showops) #opsLink { display:none; }
 
-
 /* ---- the loadout ------------------------------------------------------
    Three slots across the top of the Echo Lab. A slot is a button in both
    directions: click a filled one to clear it, click an empty one while an
@@ -598,9 +562,7 @@ body:not(.showops) #opsLink { display:none; }
 .loadout .slot .sk{position:absolute;top:9px;right:12px;font-family:var(--mono);font-size:11px;color:var(--faint)}
 .loadout .slot h4{margin:0;font-size:14.5px;font-weight:600;letter-spacing:-.01em}
 .loadout .slot small{display:block;margin-top:3px;font-size:11px;color:var(--mute)}
-.loadout-hint{margin:-10px 0 16px;font-size:12px;color:var(--faint);line-height:1.5}
 .ability-item.equipped{background:linear-gradient(90deg,color-mix(in srgb,var(--signal) 7%,transparent),transparent)}
-.ability-item h3 .mod-tag{margin:0 0 0 10px;font-size:10.5px;vertical-align:middle;color:var(--faint)}
 .ability-item h3 .mod-tag.alt{color:var(--echo)}
 .item p.syn{margin-top:7px;font-size:12px;color:var(--faint)}
 .item p.syn b{color:var(--mute);font-weight:600}

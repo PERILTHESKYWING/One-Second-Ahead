@@ -843,7 +843,12 @@ function drawWorld() {
   drawMimicPaths();
   ctx.globalAlpha = 1;
   for (const pr of G.portals) {
-    const t = pr.t / .55, c = ecol(EN[pr.type].col);
+    /* A portal's age can legitimately start below zero — that is how a
+       spawn is staggered without a queue entry — so the progress it draws
+       from is clamped. An arc() with a negative radius is a thrown
+       exception, not a no-op, and one of those in the render pass kills
+       the whole frame. */
+    const t = clamp(pr.t / .55, 0, 1), c = ecol(EN[pr.type].col);
     ctx.save(); ctx.translate(pr.x, pr.y); ctx.rotate(t * 6);
     ctx.strokeStyle = "rgba(" + c + "," + (.35 + t * .6) + ")"; ctx.lineWidth = 2;
     polyPath(46 * (1 - t) + 14, 3, 0); ctx.stroke();

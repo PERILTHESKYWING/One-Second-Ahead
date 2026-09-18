@@ -176,6 +176,7 @@ function newRun(survival, startAt) {
   buildAbilities();
   G.score = 0; G.kills = 0; G.shards = 0; G.combo = 0; G.comboTimer = 0; G.runTime = 0;
   G.levelIdx = startAt || 0; G.loop = 0; G.wave = 0; G.breather = 0; G.draftIn = 0;
+  G.tutorial = 0;
   G.mutation = survival ? 0 : G.mutation;
   clearWorld();
   resetBranchState();
@@ -352,7 +353,13 @@ function startWave(n) {
   }
   Audio_.waveIn();
   updateWaveDots();
-  if (isBoss) banner(EN[TL.boss].label, TL.code.toLowerCase());
+  if (isBoss) {
+    /* the boss wave announces itself: its own sound, and the HUD flashing
+       once so the change of gear is felt and not just read */
+    if (typeof Audio_.bossWarn === "function") Audio_.bossWarn();
+    const h = $("#hud"); if (h) { h.classList.remove("boss"); void h.offsetWidth; h.classList.add("boss"); }
+    banner(EN[TL.boss].label, TL.code.toLowerCase());
+  }
   else if (n === 1) banner(L.name, L.hook.split(".")[0].toLowerCase());
   else banner("Wave " + n, "of " + L.waves);
 }
@@ -499,15 +506,10 @@ function spawnEnemy(type, x, y, elite) {
   if (!SAVE.seen[type]) { SAVE.seen[type] = 1; persist(); }
   return e;
 }
-function tickWaves(dt) {
-  if (G.carding) { G.cardIn -= dt; if (G.cardIn <= 0) beginLevelWaves(); return; }
-  if (G.drafting) return;
-  if (G.draftIn > 0) { G.draftIn -= dt; if (G.draftIn <= 0) { G.draftIn = 0; openDraft(); } return; }
-  if (G.breather > 0) {
-    G.breather -= dt;
-    if (G.breather <= 0) startWave(G.wave + 1);
-    return;
-  }
+/* The spawn pump: queued bodies become portals, portals become enemies.
+   Shared by the wave director and the tutorial script, so a body arrives the
+   same way and with the same telegraph in both. */
+function tickSpawns(dt) {
   for (let i = G.queue.length - 1; i >= 0; i--) {
     G.queue[i].t -= dt;
     if (G.queue[i].t <= 0) {
@@ -525,6 +527,22 @@ function tickWaves(dt) {
       G.portals.splice(i, 1);
     }
   }
+}
+function tickWaves(dt) {
+  if (G.carding) { G.cardIn -= dt; if (G.cardIn <= 0) beginLevelWaves(); return; }
+  if (G.drafting) return;
+  /* The tutorial is the ordinary run loop with the wave director switched
+     off and a script driving what walks in instead (see tutTick in
+     18-shell.js). Spawn portals still resolve — that is how bodies get into
+     the room — but nothing counts waves, hands out cores or ends a level. */
+  if (G.tutorial) { tickSpawns(dt); if (typeof tutTick === "function") tutTick(dt); return; }
+  if (G.draftIn > 0) { G.draftIn -= dt; if (G.draftIn <= 0) { G.draftIn = 0; openDraft(); } return; }
+  if (G.breather > 0) {
+    G.breather -= dt;
+    if (G.breather <= 0) startWave(G.wave + 1);
+    return;
+  }
+  tickSpawns(dt);
   if (!G.waveClearing && !G.queue.length && !G.portals.length && !G.enemies.length) {
     G.waveClearing = true;
     const L = curLevel();
@@ -579,7 +597,7 @@ function nextLevel() {
    straight into the next level and a death threw you back to the branch's
    level 1; neither let you choose what to play next. */
 function finishLevel(cleared) {
-  if (G.survival || G.attract || G.levelResolved) return;
+  if (G.survival || G.attract || G.tutorial || G.levelResolved) return;
   G.levelResolved = 1;
   G.levelDone = 0;
   const L = curLevel();
@@ -715,6 +733,7 @@ function killEnemy(e) {
   }
   const i = G.enemies.indexOf(e);
   if (i >= 0) G.enemies.splice(i, 1);
+  if (typeof tutOnKill === "function") tutOnKill();
 }
 /* `quiet` strips an explosion back to its damage and a token ring: no
    screen flash, no camera shake, no audio, a fifth of the debris. Anything
@@ -794,6 +813,13 @@ function hurtPlayer(n, src, shot) {
     G.combo = 0;
   }
   if (src && G.mods.thorns > 0 && src.hp !== undefined) damageEnemy(src, G.mods.thorns, { noCrit: true });
+  if (p.hp <= 0 && G.tutorial) {
+    /* the tutorial cannot kill you: a new player dying to the lesson is the
+       lesson failing, not them. It still hurts, so the feedback is real. */
+    p.hp = Math.max(12, p.maxHp * .12);
+    p.iframe = Math.max(p.iframe, 1.1);
+    return;
+  }
   if (p.hp <= 0) {
     if (G.mods.secondWind > 0 && !p.windUsed) {
       p.windUsed = true; p.hp = 35; p.iframe = 1.6;
@@ -915,6 +941,7 @@ function dashDir(p) { return p.moveAng; }
 function doDash() {
   const p = G.player, m = G.mods;
   if (p.dashing > 0) return;
+  if (typeof tutOnDash === "function") tutOnDash();
   const c = recallTarget();
   if (c) {
     if (recallReady()) doRecall(c);
@@ -1004,6 +1031,7 @@ function burnTrail(p, m) {
 function summonEcho() {
   const p = G.player, m = G.mods;
   if (p.echo <= 0 || p.hist.length < 20) return;
+  if (typeof tutOnEcho === "function") tutOnEcho();
   p.echo--; p.echoCd = Math.max(p.echoCd, 8.5);
   const path = p.hist.slice(-Math.min(p.hist.length, 130)).map((h) => ({ x: h.x, y: h.y }));
   const life = 6.5 * m.echoLifeMul;

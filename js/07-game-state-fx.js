@@ -21,6 +21,7 @@ const G = {
      which is the whole point of levels being discrete now. `mutation` is
      the replay toggle from the map screen. */
   levelHits: 0, levelT: 0, mutation: 0, levelDone: 0, levelResolved: 0, attemptTrophy: null,
+  tutorial: 0,
   coronaAng: 0, current: 0, drain: 0, sealT: 0, shotsThisWave: 0, codaKills: [], safeWedge: null,
 };
 function curLevel() { return LEVELS[clamp(G.levelIdx, 0, LEVELS.length - 1)]; }
