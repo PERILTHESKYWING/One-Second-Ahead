@@ -727,8 +727,19 @@ html, body { overflow: hidden; overscroll-behavior: none; }
   display: flex; flex-direction: column; justify-content: center; gap: var(--s4);
 }
 .pause h2 { margin: 0; font: 800 clamp(30px, 5vw, 44px)/1 var(--sans); letter-spacing: -.035em; color: var(--bone); }
-.pause-acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
-.pause-acts .btn-primary, .pause-acts .btn-ghost { text-align: center; }
+/* Not four identical bars. One primary, two equal secondaries side by side,
+   and the destructive one demoted to a text link — three weights, so the
+   stack has a shape instead of being a list. */
+.pause-acts { display: flex; flex-direction: column; gap: var(--s2); align-items: stretch; }
+.pause-acts .btn-primary { text-align: center; padding: var(--s4); }
+.pause-minor { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pause-minor .btn-ghost { text-align: center; }
+.linkbtn {
+  cursor: pointer; border: 0; background: none; color: var(--faint);
+  font: 600 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  padding: var(--s3); margin-top: var(--s2); transition: color .15s;
+}
+.linkbtn:hover { color: rgba(255,120,140,.9); }
 
 #guide { padding: 0; }
 .lab.guide { width: min(720px, 100%); grid-template-rows: auto 1fr; }

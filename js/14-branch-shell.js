@@ -548,7 +548,10 @@ addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
   if (e.code === "Space" || k === "arrowup" || k === "arrowdown") e.preventDefault();
   Audio_.init(); Audio_.resume();
-  if (CINE.active) { if (k !== "escape") skipCine(); keys.add(k); return; }
+  /* Escape used to be excluded here, so a player reaching for the most
+     obvious "get me out of this" key during the cold open got nothing.
+     Any key skips it, which is what the on-screen hint already says. */
+  if (CINE.active) { skipCine(); keys.add(k); return; }
   if (bootRunning) { skipBoot(); keys.add(k); return; }
   if (!keys.has(k)) {
     if (G.drafting) { if (k === "1" || k === "2" || k === "3") { chooseCore(parseInt(k, 10) - 1); return; } }
