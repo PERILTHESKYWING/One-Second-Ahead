@@ -101,21 +101,6 @@
     </div>
   </section>
 
-  <section class="screen" id="submenu">
-    <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>Menu</h2><p>Controls, the bestiary, and how loud and bright this all gets.</p></div></div>
-      <nav class="menu" id="submenuMenu" style="max-width:420px">
-        <button class="menu-item sel" data-go="guide"><i class="glyph"></i><span class="label">How to play<small class="sub">Controls and enemies</small></span></button>
-        <button class="menu-item" data-go="settings"><i class="glyph"></i><span class="label">Settings<small class="sub">Sound, light, effects</small></span></button>
-      </nav>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span></div>
-        <button class="btn" data-go="home">Back to menu</button>
-      </div>
-    </div>
-  </section>
-
   <section class="screen" id="cine">
     <canvas id="cineCanvas"></canvas>
     <div class="cine-bars"><i></i><i></i></div>
@@ -133,20 +118,6 @@
       </header>
       <div class="road" id="roadBody"></div>
       <div class="road-tip" id="roadTip"></div>
-    </div>
-  </section>
-
-  <section class="screen" id="archive">
-    <div class="scrim"></div>
-    <div class="panel wide">
-      <div class="panel-head">
-        <div><h2>The Archive</h2><p>Everything the facility wrote down, everything it redacted, and the eight things it never wrote down at all.</p></div>
-      </div>
-      <div class="arc-wrap"><div class="rail" id="arcRail"></div><div class="arc-body" id="arcBody"></div></div>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span></div>
-        <button class="btn" data-go="home">Back to menu</button>
-      </div>
     </div>
   </section>
 
@@ -189,33 +160,31 @@
 
   <section class="screen" id="guide">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>How to play</h2><p>Move, hold to fire, and time two abilities. Entropy telegraphs every heavy attack on the floor before it lands, so the whole fight is a reading exercise.</p></div></div>
+    <div class="lab guide">
+      <header class="lab-head">
+        <button class="backbtn" data-go="home"><i class="ic-back"></i></button>
+        <div class="road-title"><h2>How to play</h2><span>Move, fire, and read the floor</span></div>
+      </header>
       <div class="guide-body">
-        <div>
-          <h4>Controls</h4>
-          <div class="ctrl"><span class="keys"><i class="k">W</i><i class="k">A</i><i class="k">S</i><i class="k">D</i></span><span>Move<em> — that's the whole movement layer</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Mouse</i></span><span>Aim<em> — the gun fires by itself and the aim snaps to what you point near</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Space</i></span><span>Dash<em> — damages what you pass through, and nothing can touch you mid-dash</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Space</i></span><span>Time-Swap<em> — with a decoy alive the same button trades places with it, and the dash steps aside</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">E</i></span><span>Echo<em> — a decoy of your last few seconds, fighting for you</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">T</i></span><span>Switch between night and daylight</span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Esc</i></span><span>Pause</span></div>
-          <ul class="tips">
-            <li>One button does both movement abilities. No decoy on the field means dash; a decoy on the field means swap. You never have to choose under pressure.</li>
-            <li>Dash <b>through</b> a crowd rather than away from it. The invulnerable window outlasts the contact, and the dash itself hurts.</li>
-            <li>Enemies chase whatever is nearest, so an echo dropped on one side splits the room in half.</li>
-            <li>Wardens hook you and shrink the room. Kill the Warden or accept the leash — the tether ring is drawn on the floor.</li>
-            <li>Revenants arrive where you were <b>heading</b>. Change direction as they blink, not after.</li>
-            <li>Hexers rotate three beams through the whole chamber. Pick the gap early and walk with it, not against it.</li>
-            <li>Howitzer brackets on the floor are shells already in the air. The ground they land on keeps burning.</li>
-            <li>Gold-crowned enemies are elites: much tougher, and one of them will be armoured, frenzied or rigged to detonate.</li>
-            <li>Kills close together fill the gold line. When it fills, surge fires on its own — you never have to watch for it.</li>
-          </ul>
+        <div class="keycard">
+          <div class="kc"><span class="kk">W A S D</span><b>Move</b></div>
+          <div class="kc"><span class="kk">Hold click</span><b>Fire</b><em>the gun aims itself</em></div>
+          <div class="kc"><span class="kk">Space</span><b>Dash</b><em>invulnerable, and it hurts what you pass through</em></div>
+          <div class="kc"><span class="kk">E</span><b>Echo</b><em>a decoy that fights and takes hits for you</em></div>
+          <div class="kc"><span class="kk">Space</span><b>Swap</b><em>with an echo alive, trade places with it</em></div>
+          <div class="kc"><span class="kk">1 2 3</span><b>Abilities</b><em>your three equipped</em></div>
+          <div class="kc"><span class="kk">Esc</span><b>Pause</b></div>
         </div>
-        <div><h4>What's out there</h4><div class="bestiary" id="bestiary"></div></div>
+        <ul class="tips">
+          <li>Every heavy attack is drawn on the floor before it lands. The fight is a reading exercise.</li>
+          <li>Dash <b>through</b> trouble, not away from it — the invulnerable window outlasts the contact.</li>
+          <li>Enemies chase whatever is nearest, so an echo dropped to one side splits the room.</li>
+          <li>Gold-crowned enemies are elites. Tougher, and each one is armoured, frenzied or rigged to blow.</li>
+          <li>Kills close together fill the gold line. When it fills, surge fires on its own.</li>
+        </ul>
+        <h4>What's out there</h4>
+        <div class="bestiary" id="bestiary"></div>
       </div>
-      <div class="panel-foot"><div class="keys"><span><i class="k">Esc</i> back</span></div><button class="btn" data-go="home">Back to menu</button></div>
     </div>
   </section>
 
@@ -235,33 +204,39 @@
 
   <section class="screen" id="pause">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>Paused</h2><p id="pauseLine">Level 1</p></div></div>
-      <nav class="menu" id="pauseMenu" style="max-width:420px">
-        <button class="menu-item sel" data-go="resume"><i class="glyph"></i><span class="label">Resume<small class="sub">Back into it</small></span><span class="k">Esc</span></button>
-        <button class="menu-item" data-go="guide"><i class="glyph"></i><span class="label">How to play<small class="sub">Controls and enemies</small></span></button>
-        <button class="menu-item" data-go="settings"><i class="glyph"></i><span class="label">Settings<small class="sub">Sound and light</small></span></button>
-        <button class="menu-item" data-go="abandon"><i class="glyph"></i><span class="label">Abandon run<small class="sub">You keep the shards you've collected</small></span></button>
-      </nav>
+    <div class="pause">
+      <span class="lr-kicker" id="pauseLine">Level 1</span>
+      <h2>PAUSED</h2>
+      <div class="pause-acts">
+        <button class="btn-primary" data-go="resume"><span>RESUME</span></button>
+        <button class="btn-ghost" data-go="guide">How to play</button>
+        <button class="btn-ghost" data-go="settings">Settings</button>
+        <button class="btn-ghost" data-go="abandon">Quit to menu</button>
+      </div>
     </div>
   </section>
 
   <section class="screen" id="results">
     <div class="scrim"></div>
-    <div class="panel">
-      <div id="newBestWrap"></div>
-      <div class="result-label" id="resultTitle">Timeline broken</div>
-      <div class="result-score" id="resultScore">0</div>
-      <div class="stat-grid">
-        <div class="stat"><b id="resLevel">1</b><span id="resLevelLabel">level reached</span></div>
-        <div class="stat"><b id="resKills">0</b><span>kills</span></div>
-        <div class="stat"><b id="resTime">0:00</b><span>survived</span></div>
-        <div class="stat"><b id="resShards" class="gold">0</b><span>shards banked</span></div>
+    <div class="lr">
+      <div class="lr-head">
+        <span class="lr-kicker" id="resultTitle">Endless</span>
+        <h2 class="lr-title" id="resultHead">RUN OVER</h2>
       </div>
-      <div class="actions">
-        <button class="btn primary" data-go="again">Run again</button>
-        <button class="btn" data-go="shop">Spend shards</button>
-        <button class="btn" data-go="home">Main menu</button>
+      <div class="lr-tro">
+        <b id="resultScore">0</b><span>score</span>
+        <div class="lr-bonus" id="newBestWrap"></div>
+      </div>
+      <div class="lr-stats">
+        <div class="lr-stat"><b id="resLevel">1</b><span id="resLevelLabel">wave reached</span></div>
+        <div class="lr-stat"><b id="resKills">0</b><span>kills</span></div>
+        <div class="lr-stat"><b id="resTime">0:00</b><span>survived</span></div>
+        <div class="lr-stat"><b id="resShards">0</b><span>shards</span></div>
+      </div>
+      <div class="lr-actions">
+        <button class="btn-primary" data-go="again"><span>RUN AGAIN</span></button>
+        <button class="btn-ghost" data-go="road">Trophy Road</button>
+        <button class="btn-ghost" data-go="home">Main menu</button>
       </div>
     </div>
   </section>

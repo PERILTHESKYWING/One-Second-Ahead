@@ -825,3 +825,64 @@ can report 350ms/frame while the CPU profile of the same run shows **52%
 idle**. That is the headless compositor stalling, not work. Any number
 produced that way has to be confirmed against a same-harness A/B before it
 means anything.
+
+---
+
+## 20 · The shell
+
+Presentation only — no game system lives in `js/17-road.js`, `js/18-shell.js`
+or `css/ui.css`. What they own is everything a player sees before and between
+fights.
+
+### What PLAY resolves to
+
+`playPressed()` → `roadNextTarget()`: the first uncleared level that is
+actually unlocked, searched across the arenas in order. One definition, in
+one place, used by the button, the road's auto-scroll and the home footer —
+so "the next thing to do" cannot mean three different things on three
+screens.
+
+### The road
+
+`buildRoad()` returns a flat list of rows (`chapter` / `level` / `reward`)
+because a flat list is what scrolls. It is rebuilt on every open — seventy-
+five levels is nothing to build, and building it fresh means the screen can
+never show stale unlock state. Node state comes from `levelUnlocked()` and
+`levelRec()`, the same functions the run loop reads.
+
+### The tutorial
+
+`G.tutorial` suspends the wave director in `tickWaves()` and the script in
+`tutTick()` drives spawns through `G.queue` instead — the same path and the
+same telegraph a real wave uses. Three hooks report player actions
+(`tutOnKill` / `tutOnDash` / `tutOnEcho`), each guarded by a `typeof` check so
+the tutorial can never break an ordinary run.
+
+It cannot kill you: `hurtPlayer()` floors the hull at 12% while
+`G.tutorial` is set. A first-time player dying to the lesson is the lesson
+failing, not them.
+
+### Interface sound
+
+One entry point, `uiSfx(kind)`, over a vocabulary of six
+(hover/move/press/back/open/toggle) plus three that carry weight
+(`levelDone`, `rewardPop`, `bossWarn`). All synthesised by the existing audio
+engine — no assets. A screen that invents its own sound is a screen that
+sounds like a different game.
+
+### Load-time DOM hooks
+
+`hook(sel, fn)` in `14-branch-shell.js`. Every load-time DOM binding goes
+through it, because a missing element used to throw mid-file and abort the
+rest of the script — which once left the main loop's `raf` in its temporal
+dead zone and broke the entire game with one null. If you remove an element
+from `index.html`, nothing else should have to know.
+
+### Numbers worth keeping
+
+| Thing | Value | Why |
+|---|---|---|
+| transition shutter | 190ms close, 260ms open | long enough to read as one app, short enough that nobody waits |
+| level-complete beats | ~260ms apart | a result that arrives in beats reads as a reward; all at once reads as a form |
+| first load → interactive | ~370ms | 23 requests, ~780KB, zero external dependencies |
+| render pass | ~7.8ms | down from ~14.8ms: two fewer full-viewport `backdrop-filter` layers after the orphaned screens were removed |

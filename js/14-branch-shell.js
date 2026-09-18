@@ -103,82 +103,14 @@ const BRANCHFN = { id: "ch09", field: null, paint: null, over: null, slowAt: nul
    only way in. */
 
 /* ---------------- the archive (lore + secrets + bestiary) ---------------- */
-let arcTab = "The Concordance";
+/* The Archive's own screen is gone; its entries are cards in the
+   Collection screen now (renderArchiveCards in 12-hud-and-screens.js),
+   because lore is granted as a Trophy Road reward and a reward needs
+   somewhere to be collected. These two helpers are what that renderer
+   reads. */
 function loreUnlocked(l) { return SAVE.admin || SAVE.lore[l.id] || (() => { try { return !!l.need(); } catch (e) { return false; } })(); }
 function redact(s) { return s.replace(/[A-Za-z0-9]/g, "█"); }
-function renderArchive() {
-  const secs = [];
-  LORE.forEach((l) => { if (!secs.includes(l.sec)) secs.push(l.sec); });
-  secs.push("Secrets"); secs.push("Bestiary");
-  const rail = $("#arcRail");
-  rail.innerHTML = "";
-  secs.forEach((s) => {
-    const b = document.createElement("button");
-    if (s === arcTab) b.classList.add("sel");
-    let n = "", tot = "";
-    if (s === "Secrets") { n = SECRETS.filter((x) => SAVE.secrets[x.id]).length; tot = SECRETS.length; }
-    else if (s === "Bestiary") { n = Object.keys(SAVE.seen).length; tot = Object.keys(EN).length; }
-    else { const list = LORE.filter((l) => l.sec === s); n = list.filter(loreUnlocked).length; tot = list.length; }
-    b.innerHTML = s + "<small>" + n + "/" + tot + "</small>";
-    b.onclick = () => { arcTab = s; Audio_.ui(); renderArchive(); };
-    rail.appendChild(b);
-  });
-  const body = $("#arcBody");
-  body.innerHTML = "";
-  body.className = "arc-body";
-  if (arcTab === "Secrets") {
-    const note = document.createElement("p");
-    note.className = "arc-note";
-    note.textContent = "Eight things the chamber does in front of you repeatedly. None of them are announced. The hint is always true.";
-    body.appendChild(note);
-    SECRETS.forEach((s) => {
-      const has = SAVE.secrets[s.id];
-      const el = document.createElement("div");
-      el.className = "arc-entry secret" + (has ? " on" : "");
-      el.innerHTML = "<h4>" + (has ? s.name : "▒▒▒▒▒▒") + "</h4>" +
-        '<p class="hint">' + s.hint + "</p>" +
-        (has ? "<p>" + s.reveal + "</p>" : '<p class="sealed">not yet observed</p>');
-      body.appendChild(el);
-    });
-    return;
-  }
-  if (arcTab === "Bestiary") {
-    body.className = "arc-body beast";
-    TIMELINES.forEach((t) => {
-      const h = document.createElement("h3");
-      h.className = "arc-h";
-      h.innerHTML = t.name + "<span>" + t.code + "</span>";
-      body.appendChild(h);
-      const grid = document.createElement("div");
-      grid.className = "bestiary";
-      body.appendChild(grid);
-      t.roster.concat([t.boss]).forEach((ty) => {
-        const d = EN[ty];
-        const seen = SAVE.seen[ty] || SAVE.admin;
-        const row = document.createElement("div");
-        row.className = "brow" + (seen ? "" : " unseen");
-        const cvs = document.createElement("canvas");
-        row.appendChild(cvs);
-        const txt = document.createElement("div");
-        txt.innerHTML = "<b>" + (seen ? d.label : "unrecorded") + "</b><span>" + (seen ? d.note : "No encounter logged in this branch.") + "</span>";
-        row.appendChild(txt);
-        grid.appendChild(row);
-        if (seen) drawIcon(cvs, ty, 30); else { cvs.width = 30; cvs.height = 30; cvs.style.width = "30px"; cvs.style.height = "30px"; }
-      });
-    });
-    return;
-  }
-  LORE.filter((l) => l.sec === arcTab).forEach((l) => {
-    const has = loreUnlocked(l);
-    const el = document.createElement("div");
-    el.className = "arc-entry" + (has ? " on" : "");
-    el.innerHTML = "<h4>" + l.title + "</h4><p>" + (has ? l.body : redact(l.body)) + "</p>" +
-      (has ? "" : '<span class="sealed">sealed — keep playing</span>');
-    body.appendChild(el);
-  });
-}
 
-/* ---------------- operator console (admin) ------------------------------ */
 const ADMIN_CODES = ["chrono-1041", "1041", "chrono1041"];
 function openAdmin() {
   show("admin");
@@ -543,14 +475,12 @@ function moveMenu(menu, d) { selectMenu(menu, parseInt(menu.dataset.idx || "0", 
    keyboard menu to drive; PLAY is bound to Enter directly instead. */
 function activeMenu() {
   if (currentScreen === "pause") return $("#pauseMenu");
-  if (currentScreen === "submenu") return $("#submenuMenu");
   return null;
 }
 /* where returnTo points, for screens reachable from more than one place */
 /* the level results screen belongs to the map, so Esc from it goes there */
 function returnToFor() {
   if (currentScreen === "pause") return "pause";
-  if (currentScreen === "submenu") return "submenu";
   return "home";
 }
 function route(dest) {
@@ -576,7 +506,6 @@ function route(dest) {
   if (dest === "shop") { returnTo = currentScreen === "pause" ? "pause" : "home"; transitionTo(() => { renderShop(); show("shop"); }); uiSfx("open"); return; }
   if (dest === "guide") { returnTo = returnToFor(); transitionTo(() => { drawBestiary(); show("guide"); }); uiSfx("open"); return; }
   if (dest === "settings") { returnTo = returnToFor(); transitionTo(() => { renderSettings(); show("settings"); }); uiSfx("open"); return; }
-  if (dest === "submenu") { show("submenu"); selectMenu($("#submenuMenu"), 0); uiSfx("open"); return; }
   if (dest === "home") {
     const wasPlaying = G.mode === "play" && !G.attract;
     transitionTo(() => { if (wasPlaying) { G.paused = false; endRunSilently(); } goHome(); });
@@ -644,10 +573,9 @@ addEventListener("keydown", (e) => {
   }
   if (k === "escape") {
     if (currentScreen === "cine") { skipCine(); return; }
-    if (currentScreen === "timelines" || currentScreen === "admin" || currentScreen === "submenu") { goHome(); return; }
+    if (currentScreen === "timelines" || currentScreen === "admin") { goHome(); return; }
     if (currentScreen === "shop" || currentScreen === "guide" || currentScreen === "settings") {
       if (returnTo === "pause") { show("pause"); selectMenu($("#pauseMenu"), 0); }
-      else if (returnTo === "submenu") { show("submenu"); selectMenu($("#submenuMenu"), 0); }
       else goHome();
     } else if (currentScreen === "pause") togglePause(false);
     /* the level results belong to the map, so Esc goes back to the road
@@ -658,10 +586,11 @@ addEventListener("keydown", (e) => {
     return;
   }
   if (currentScreen === "home") {
-    if (k === "enter") return route("play");
+    if (k === "enter" || k === " ") return playPressed();
+    if (k === "r") return route("road");
     if (k === "v") return route("survival");
-    if (k === "l") return route("shop");
-    if (k === "m") return route("submenu");
+    if (k === "l") return route("loadout");
+    if (k === "c") return route("collection");
     if (k === "`" || k === "~") return route("admin");
     codeBuffer = (codeBuffer + k).slice(-8);
     if (codeBuffer.indexOf("1041") >= 0) { codeBuffer = ""; unlockSecret("constant"); document.body.classList.add("showops"); refreshBranchHome(); }

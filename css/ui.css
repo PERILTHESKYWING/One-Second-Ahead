@@ -708,3 +708,68 @@ body.reduced #hud.boss { animation: none !important; }
    page behind them never does. Without this a screen that is one pixel too
    wide gives the whole document a scrollbar and the canvas resizes under it. */
 html, body { overflow: hidden; overscroll-behavior: none; }
+
+/* archive entries in the Collection grid */
+.lab-grid.lore { grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
+.card.lorecard { min-height: 116px; }
+.card.lorecard .card-fam { color: var(--chrono); }
+.card.sealed { cursor: default; opacity: .55; }
+.card.sealed:hover { transform: none; }
+.card.sealed h4, .card.sealed .card-line { font-family: var(--mono); letter-spacing: .04em; }
+.card.sealed .card-fam { color: var(--faint); }
+
+/* ==================================================================
+   PAUSE / HELP
+   ================================================================== */
+#pause { padding: 0; }
+.pause {
+  position: relative; height: 100%; width: min(380px, 88vw); margin: 0 auto;
+  display: flex; flex-direction: column; justify-content: center; gap: var(--s4);
+}
+.pause h2 { margin: 0; font: 800 clamp(30px, 5vw, 44px)/1 var(--sans); letter-spacing: -.035em; color: var(--bone); }
+.pause-acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.pause-acts .btn-primary, .pause-acts .btn-ghost { text-align: center; }
+
+#guide { padding: 0; }
+.lab.guide { width: min(720px, 100%); grid-template-rows: auto 1fr; }
+/* The old rule made this a two-column grid, which splits a single column of
+   content into unrelated halves. One column, and the bestiary grids inside
+   it instead. */
+.lab.guide .guide-body {
+  display: block; overflow-y: auto; padding-bottom: var(--s7); scrollbar-width: thin;
+}
+.guide-body::-webkit-scrollbar { width: 8px }
+.guide-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px }
+.guide-body h4 {
+  margin: var(--s6) 0 var(--s3); font: 650 9.5px/1 var(--mono);
+  letter-spacing: .22em; text-transform: uppercase; color: var(--signal); opacity: .7;
+}
+.keycard { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 6px; }
+.kc {
+  display: flex; flex-direction: column; gap: 3px; padding: var(--s3) var(--s4); border-radius: var(--r2);
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.016));
+  box-shadow: 0 1px 0 rgba(255,255,255,.07) inset;
+}
+.kk { font: 700 9.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--signal); }
+.kc b { font: 700 14px/1 var(--sans); letter-spacing: -.01em; color: var(--bone); }
+.kc em { font: 500 11.5px/1.4 var(--sans); font-style: normal; color: var(--faint); }
+.guide-body .tips { margin: var(--s5) 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s2); }
+.guide-body .tips li {
+  position: relative; padding-left: var(--s4);
+  font: 500 12.5px/1.5 var(--sans); color: var(--mute);
+}
+.guide-body .tips li::before {
+  content: ""; position: absolute; left: 0; top: .55em; width: 5px; height: 5px;
+  background: var(--signal); opacity: .6;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.guide-body .tips b { color: var(--bone); font-weight: 650; }
+@media (max-width: 620px) {
+  .lab.guide { width: 100%; }
+  .keycard { grid-template-columns: 1fr; }
+}
+
+.lab.guide .bestiary {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: var(--s3);
+}
+@media (max-width: 620px) { .lab.guide .bestiary { grid-template-columns: 1fr; } }

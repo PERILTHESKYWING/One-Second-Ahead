@@ -224,6 +224,10 @@ function showLevelCard(L) {
   Audio_.levelIn();
 }
 function showResults(banked, best) {
+  /* Survival's own results screen. It shares the level-complete layout so
+     the two do not read as two different games, but it keeps its own copy:
+     there is no level to have completed and nothing to unlock. */
+  $("#resultHead").textContent = "RUN OVER";
   $("#resultScore").textContent = fmt(G.score);
   $("#resLevel").textContent = G.survival ? G.wave : G.loop * LEVELS.length + G.levelIdx + 1;
   $("#resLevelLabel").textContent = G.survival ? "wave reached" : "level reached";
@@ -231,10 +235,10 @@ function showResults(banked, best) {
   const m = Math.floor(G.runTime / 60), s = Math.floor(G.runTime % 60);
   $("#resTime").textContent = m + ":" + String(s).padStart(2, "0");
   $("#resShards").textContent = fmt(banked);
-  $("#newBestWrap").innerHTML = best ? '<div class="newbest"><i class="shard"></i>New personal best</div>' : "";
+  $("#newBestWrap").innerHTML = best ? '<span class="bonus">New personal best</span>' : "";
   $("#resultTitle").textContent = G.survival
-    ? "Timeline broken on wave " + G.wave
-    : "Timeline broken in " + curLevel().name;
+    ? "Endless · wave " + G.wave
+    : curLevel().name;
   show("results");
 }
 /* ---------------- LEVEL COMPLETE ----------------------------------------
@@ -429,7 +433,13 @@ function renderShop(mode) {
         all: ABIL.filter((a) => a.fam === f).length }))
     : COSM_GROUPS.map((g) => ({ key: g.label, label: g.label,
         own: COSM.filter((c) => c.g === g.key && owns(c.id)).length,
-        all: COSM.filter((c) => c.g === g.key).length }));
+        all: COSM.filter((c) => c.g === g.key).length }))
+      /* The Archive lives here rather than on its own screen. Lore entries
+         are granted as Trophy Road rewards and there was no route to read
+         them anywhere in the game — a reward you cannot collect. They are
+         things you have unlocked, which is what this screen is. */
+      .concat([{ key: "Archive", label: "Archive",
+        own: LORE.filter(loreUnlocked).length, all: LORE.length }]);
   if (!groups.some((g) => g.key === shopCat)) shopCat = groups[0].key;
   groups.forEach((g) => {
     const b = document.createElement("button");
@@ -465,7 +475,9 @@ function renderShop(mode) {
   const stock = $("#shopStock");
   stock.innerHTML = "";
   stock.className = "lab-grid" + (abil ? "" : " cos");
-  if (abil) renderAbilityCards(stock); else renderCosmeticCards(stock);
+  if (abil) renderAbilityCards(stock);
+  else if (shopCat === "Archive") renderArchiveCards(stock);
+  else renderCosmeticCards(stock);
   refreshHome();
 }
 
@@ -512,6 +524,27 @@ function renderAbilityCards(stock) {
   });
 }
 
+/* The archive as cards. A locked entry shows its section and title redacted
+   rather than being hidden, so the shape of the story is visible before the
+   story is — which is the same rule the road follows for locked levels. */
+function renderArchiveCards(stock) {
+  stock.className = "lab-grid lore";
+  LORE.forEach((l) => {
+    const open = loreUnlocked(l);
+    const isOpen = labOpen === l.id && open;
+    const card = document.createElement("div");
+    card.className = "card lorecard" + (open ? " owned" : " sealed") + (isOpen ? " open" : "");
+    /* the sealed marker rides the section line rather than being a second
+       label at the bottom of the card — two states on one card need one
+       place to say which state it is in */
+    card.innerHTML =
+      '<span class="card-fam">' + (open ? l.sec : "Sealed · " + l.sec) + "</span>" +
+      "<h4>" + (open ? l.title : redact(l.title)) + "</h4>" +
+      '<p class="card-line">' + (open ? (isOpen ? l.body : firstLine(l.body)) : redact(l.body.slice(0, 90))) + "</p>";
+    if (open) card.onclick = () => { labOpen = isOpen ? null : l.id; uiSfx("hover"); renderShop(); };
+    stock.appendChild(card);
+  });
+}
 function renderCosmeticCards(stock) {
   const group = COSM_GROUPS.find((g) => g.label === shopCat) || COSM_GROUPS[0];
   COSM.filter((c) => c.g === group.key).forEach((item) => {

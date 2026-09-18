@@ -126,11 +126,13 @@ function drawBossBar() {
 }
 
 /* --- DOM hooks for the new screens --- */
-$("#cineSkip").addEventListener("pointerdown", skipCine);
-$("#cine").addEventListener("pointerdown", skipCine);
-$("#admGo").onclick = tryAdmin;
-$("#admCode").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.stopPropagation(); tryAdmin(); } });
-$("#opsLink").onclick = () => { openAdmin(); Audio_.ui(); };
+/* Every one of these runs at load, so every one of them survives its element
+   not being on the page — see the note on hook() in 14-branch-shell.js. */
+hook("#cineSkip", (el) => el.addEventListener("pointerdown", skipCine));
+hook("#cine", (el) => el.addEventListener("pointerdown", skipCine));
+hook("#admGo", (el) => { el.onclick = tryAdmin; });
+hook("#admCode", (el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.stopPropagation(); tryAdmin(); } }));
+hook("#opsLink", (el) => { el.onclick = () => { openAdmin(); uiSfx("open"); }; });
 if (SAVE.admin || SAVE.secrets.constant) document.body.classList.add("showops");
 setTimeline("ch09");
 refreshBranchHome();

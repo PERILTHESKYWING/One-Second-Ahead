@@ -76,6 +76,21 @@ in a level you have outgrown, for a quarter more trophies.
 Progress from before this existed migrates in place — a cleared arena arrives
 with all fifteen levels cleared at baseline trophies.
 
+## Getting in
+
+`PLAY` does one thing and always the right one: the tutorial if you have
+never played, otherwise the level the Trophy Road is pointing at. There is no
+mode to choose first.
+
+The **tutorial** is six playable steps — move, fire, dash, read the floor,
+drop an echo, clear the room — in the real game with the wave director
+suspended. It cannot kill you, it is skippable, and it is remembered.
+
+The **Trophy Road** is the progression screen: one vertical path, all
+seventy-five levels on it, with each level's first-clear reward shown in
+place. It opens scrolled to wherever you are. Levels unlock strictly in
+order, and a locked one tells you exactly what to finish first.
+
 ## Project layout
 
 This game started as one ~9,800-line HTML file and has been split into sections
@@ -101,7 +116,7 @@ js/
                           and the first-clear reward table.
   02c-trophy-road.js     Per-level save state, the trophy formula, the two
                           reward tracks, the mutation replay, and the unlock
-                          queries the map and the run loop ask.
+                          queries the road and the run loop ask.
   03-render-toolkit.js   Canvas setup and the shared low-level drawing toolkit
                           (gradients, shadows, limbs, eyes, plates, chains...).
   04-enemy-art.js        Procedural art for every base-game (Chamber 09) enemy.
@@ -126,14 +141,20 @@ js/
   12-hud-and-screens.js   HUD widgets, screen routing, the Echo Lab shop UI,
                           settings panel, the boot terminal sequence.
   13-cinematic.js         The "Cold Open" intro cinematic.
-  14-branch-shell.js      The space-time map (arena regions, level-node
-                          strips, locked-arena teasing), the Archive, the
-                          operator console, input handling, run flow, menus,
-                          main loop.
+  14-branch-shell.js      Input handling, run flow, menu routing, the
+                          operator console and the main loop.
   15-branch-wiring.js     Secret detection, the hidden seal, branch completion.
   16-abilities.js         The twelve pilot abilities and the three-slot
                           loadout, plus the special-grade mutations survival
                           rolls onto its enemies (one for every enemy type).
+  17-road.js              The Trophy Road screen: one vertical progression
+                          path, 75 level nodes and their reward cards.
+  18-shell.js             The shell: UI sound, screen transitions, the
+                          first-time tutorial, and what PLAY resolves to.
+css/
+  ui.css                  The redesigned screens (home, road, loadout,
+                          collection, settings, help, pause, results) and
+                          the icon set, as inline SVG masks.
 ```
 
 ### Editing tips
