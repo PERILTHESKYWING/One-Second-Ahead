@@ -1,0 +1,786 @@
+/* The redesigned shell: home, Trophy Road, tutorial, transitions.
+
+   Loaded after style.css so it can take over the screens it replaces while
+   leaving the HUD, the boot terminal and the in-run overlays alone.
+
+   Three rules hold this together, and most of the "does this look like a
+   real game or a dashboard" difference comes from them:
+
+     ONE SPACING SCALE. Everything is a multiple of 4px, expressed through
+     the --s* tokens. Arbitrary margins are what make a layout feel assembled
+     rather than designed.
+
+     LIGHT, NOT BORDERS. Depth comes from a light source at the top of the
+     screen — gradients that brighten upward, a hairline highlight on the top
+     edge, a shadow below. A 1px outline around every box is the house style
+     of a debug panel.
+
+     ONE ACCENT AT A TIME. Each surface gets a single --tc and everything on
+     it is that colour at different strengths. Multiple hues competing inside
+     one card is the single loudest "generated" tell. */
+
+:root {
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px;
+  --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px;
+  --r1: 6px; --r2: 10px; --r3: 14px; --r4: 22px;
+  --ease: cubic-bezier(.22, .9, .25, 1);
+  --easeOut: cubic-bezier(.16, 1, .3, 1);
+}
+
+/* ---------------- icons -------------------------------------------------
+   Inline SVG masks: one declaration each, sharp at any size, coloured by
+   `background`, and no network request. Everything in the interface uses
+   this set — a screen that needs a glyph the set does not have is a screen
+   that should be using words instead. */
+[class^="ic-"], [class*=" ic-"] {
+  display: inline-block; width: 1em; height: 1em; flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+  vertical-align: -.12em;
+}
+.ic-trophy { -webkit-mask-image: var(--i-trophy); mask-image: var(--i-trophy); }
+.ic-tick { -webkit-mask-image: var(--i-tick); mask-image: var(--i-tick); }
+.ic-lock { -webkit-mask-image: var(--i-lock); mask-image: var(--i-lock); }
+.ic-boss { -webkit-mask-image: var(--i-boss); mask-image: var(--i-boss); }
+.ic-shard { -webkit-mask-image: var(--i-shard); mask-image: var(--i-shard); }
+.ic-abil { -webkit-mask-image: var(--i-abil); mask-image: var(--i-abil); }
+.ic-cos { -webkit-mask-image: var(--i-cos); mask-image: var(--i-cos); }
+.ic-lore { -webkit-mask-image: var(--i-lore); mask-image: var(--i-lore); }
+.ic-back { -webkit-mask-image: var(--i-back); mask-image: var(--i-back); }
+.ic-road { -webkit-mask-image: var(--i-road); mask-image: var(--i-road); }
+.ic-chip { -webkit-mask-image: var(--i-chip); mask-image: var(--i-chip); }
+.ic-gem { -webkit-mask-image: var(--i-gem); mask-image: var(--i-gem); }
+.ic-gear { -webkit-mask-image: var(--i-gear); mask-image: var(--i-gear); }
+:root {
+  --i-trophy: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M6 3h12v2h3v3a4 4 0 0 1-4 4h-.4A6 6 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A6 6 0 0 1 7.4 12H7a4 4 0 0 1-4-4V5h3V3Zm0 4H5v1a2 2 0 0 0 1 1.7V7Zm12 0v2.7A2 2 0 0 0 19 8V7h-1Z"/></svg>');
+  --i-tick: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12.5 10 17.5 19.5 7"/></svg>');
+  --i-lock: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M12 2a5 5 0 0 1 5 5v2h1a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm3 7V7a3 3 0 1 0-6 0v2h6Z"/></svg>');
+  --i-boss: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="m12 1.8 2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 16.9l-6.1 3.5 1.4-6.8L2.2 8.9l6.9-.8Z"/></svg>');
+  --i-shard: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M12 2 20 9.5 12 22 4 9.5Z"/></svg>');
+  --i-abil: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M13 2 4 13.6h6L11 22l9-11.6h-6Z"/></svg>');
+  --i-cos: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M12 2.2 14.1 9h7.1l-5.8 4.2 2.2 6.9-5.6-4.3-5.6 4.3 2.2-6.9L2.8 9h7.1Z" opacity=".35"/><circle cx="12" cy="12" r="4.4" fill="black"/></svg>');
+  --i-lore: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M5 3h9l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm8 1.8V9h4.2ZM7 12h10v1.8H7Zm0 4h10v1.8H7Z"/></svg>');
+  --i-back: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" stroke="black" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M15 5 8 12l7 7"/></svg>');
+  --i-road: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="4.6" r="2.6" fill="black"/><circle cx="12" cy="12" r="2.6" fill="black" opacity=".6"/><circle cx="12" cy="19.4" r="2.6" fill="black" opacity=".3"/></svg>');
+  --i-chip: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M8 2h2v2h4V2h2v2h1a3 3 0 0 1 3 3v1h2v2h-2v4h2v2h-2v1a3 3 0 0 1-3 3h-1v2h-2v-2h-4v2H8v-2H7a3 3 0 0 1-3-3v-1H2v-2h2v-4H2V8h2V7a3 3 0 0 1 3-3h1Zm1 7v6h6V9Z"/></svg>');
+  --i-gem: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="M7.4 3h9.2l4 5.2L12 21.4 3.4 8.2Zm.9 2L6 8h4.2Zm7.4 0L13.8 8H18Zm-3.7.5L10.2 8h3.6Z"/></svg>');
+  --i-gear: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="black" d="m10 2h4l.4 2.5 1.8 1 2.3-1 2 3.5-1.9 1.6v2l1.9 1.6-2 3.5-2.3-1-1.8 1L14 22h-4l-.4-2.5-1.8-1-2.3 1-2-3.5 1.9-1.6v-2L3.5 9.3l2-3.5 2.3 1 1.8-1Zm2 6.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"/></svg>');
+}
+
+/* ---------------- the transition shutter --------------------------------
+   Two panels closing from top and bottom, the swap happening behind them,
+   then opening. Cheap (two transforms), and it means no screen ever pops. */
+#wipe { position: fixed; inset: 0; z-index: 60; pointer-events: none; display: none; }
+#wipe.on { display: block; }
+#wipe i {
+  position: absolute; left: 0; right: 0; height: 51%;
+  background: linear-gradient(180deg, #05070e, #090d1a);
+  transform: scaleY(0); will-change: transform;
+}
+#wipe i:first-child { top: 0; transform-origin: top; }
+#wipe i:last-child { bottom: 0; transform-origin: bottom; }
+#wipe.close i { transform: scaleY(1); transition: transform .19s var(--ease); }
+#wipe.open i { transform: scaleY(0); transition: transform .26s var(--easeOut); }
+
+/* ==================================================================
+   HOME
+   ================================================================== */
+/* The attract-mode game runs live behind this, which is the best asset the
+   title screen has — so the job here is to sit on top of it legibly rather
+   than to cover it up. A single vertical scrim does that; a full-screen
+   blurred panel would throw the motion away. */
+#home { padding: 0; display: block; }
+#home .home-grad {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4,6,14,.95) 0%, rgba(4,6,14,.6) 22%, rgba(4,6,14,.22) 46%,
+                    rgba(4,6,14,.72) 74%, rgba(4,6,14,.97) 100%),
+    linear-gradient(90deg, rgba(4,6,14,.85), rgba(4,6,14,.2) 46%, transparent 70%),
+    radial-gradient(120% 70% at 50% 120%, rgba(111,242,255,.10), transparent 60%);
+}
+.home-in {
+  position: relative; height: 100%;
+  display: grid; grid-template-rows: auto 1fr auto;
+  padding: clamp(var(--s5), 4vw, var(--s8)); gap: var(--s5);
+  pointer-events: none;
+}
+.home-in > * { pointer-events: auto; }
+
+.brand { display: flex; flex-direction: column; gap: var(--s2); }
+.brand-kicker {
+  font: 600 10px/1 var(--mono); letter-spacing: .34em; text-transform: uppercase;
+  color: var(--signal); opacity: .55;
+}
+.wordmark {
+  margin: 0; line-height: .84; display: flex; flex-direction: column;
+  letter-spacing: -.045em; font-weight: 800;
+  font-size: clamp(34px, 6.4vw, 78px);
+}
+/* The two halves are weighted differently on purpose: the eye lands on ONE
+   SECOND and then falls into AHEAD, which is the phrase's own rhythm. The
+   old outline treatment made the second line nearly invisible. */
+.wordmark .l1 { color: var(--bone); }
+.wordmark .l2 {
+  color: transparent; font-weight: 800;
+  background: linear-gradient(92deg, var(--signal), var(--echo) 70%, var(--chrono));
+  -webkit-background-clip: text; background-clip: text;
+  filter: drop-shadow(0 0 22px rgba(111,242,255,.2));
+}
+
+.home-actions { align-self: center; display: flex; flex-direction: column; gap: var(--s4); width: min(400px, 100%); }
+
+/* PLAY dominates by size, weight, colour and motion — four channels, so it
+   still reads as the primary action for someone glancing at a thumbnail. */
+.play {
+  position: relative; isolation: isolate; cursor: pointer;
+  border: 0; padding: var(--s4) var(--s6); border-radius: var(--r3);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  width: fit-content; min-width: 244px;
+  color: #04121a; font: inherit; text-align: left;
+  background: linear-gradient(170deg, #9dfcff, var(--signal) 46%, #23b6d8);
+  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset, 0 18px 40px -18px rgba(111,242,255,.75),
+              0 2px 0 rgba(0,0,0,.35);
+  transition: transform .16s var(--ease), box-shadow .16s var(--ease), filter .16s;
+}
+.play-glow {
+  position: absolute; inset: -2px; border-radius: inherit; z-index: -1;
+  background: linear-gradient(170deg, var(--signal), transparent 60%);
+  opacity: .5; filter: blur(14px);
+  animation: playPulse 3.4s ease-in-out infinite;
+}
+@keyframes playPulse { 0%,100% { opacity: .38 } 50% { opacity: .78 } }
+.play-main { font: 800 clamp(25px, 3vw, 33px)/1 var(--sans); letter-spacing: -.01em; }
+.play-sub { font: 650 11px/1.2 var(--mono); letter-spacing: .12em; text-transform: uppercase; opacity: .62; }
+.play:hover { transform: translateY(-2px); filter: brightness(1.05);
+  box-shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 24px 52px -18px rgba(111,242,255,.9), 0 2px 0 rgba(0,0,0,.35); }
+.play:active { transform: translateY(1px); }
+
+/* Four secondary destinations, equal weight, obviously subordinate. They are
+   a row of small things rather than four more big buttons — which is what
+   stops the menu reading as a list of links. */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(400px, 100%); }
+.tile {
+  cursor: pointer; border: 0; color: var(--mute); font: inherit;
+  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  padding: var(--s3) 6px; border-radius: var(--r2);
+  background: linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.028));
+  box-shadow: 0 1px 0 rgba(255,255,255,.09) inset;
+  transition: color .15s, background .15s, transform .15s var(--ease);
+}
+.tile i { font-size: 21px; opacity: .9; }
+.tile span { font: 650 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.tile:hover { color: var(--bone); transform: translateY(-2px);
+  background: linear-gradient(180deg, rgba(111,242,255,.2), rgba(111,242,255,.06)); }
+
+.home-foot {
+  display: flex; align-items: center; gap: var(--s5); flex-wrap: wrap;
+  color: var(--faint); font: 600 11px/1 var(--mono); letter-spacing: .08em;
+}
+.hprog { display: flex; flex-direction: column; gap: var(--s2); min-width: 210px; }
+.hprog-top { text-transform: uppercase; }
+.hprog-top b { color: var(--bone); font-weight: 750; }
+.hbar { display: block; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+.hbar i { display: block; height: 100%; background: linear-gradient(90deg, var(--signal), var(--echo)); transition: width .6s var(--easeOut); }
+.hstat { display: flex; align-items: center; gap: var(--s2); color: var(--chrono); font-size: 13px; }
+.hstat b { font-weight: 750; }
+.ghostbtn {
+  margin-left: auto; cursor: pointer; border: 0; color: var(--faint); font: inherit;
+  letter-spacing: .12em; text-transform: uppercase; background: none;
+  padding: var(--s2) var(--s3); border-radius: var(--r1); transition: color .15s, background .15s;
+}
+.ghostbtn + .ghostbtn { margin-left: 0; }
+.ghostbtn:hover { color: var(--bone); background: rgba(255,255,255,.07); }
+
+/* ==================================================================
+   TROPHY ROAD
+   ================================================================== */
+#timelines { padding: 0; }
+.road-wrap {
+  position: relative; height: 100%; width: min(680px, 100%);
+  margin: 0 auto; display: grid; grid-template-rows: auto 1fr;
+}
+.road-head {
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s5) var(--s5) var(--s3);
+}
+.backbtn {
+  cursor: pointer; border: 0; color: var(--mute); font-size: 18px;
+  width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255,255,255,.07); transition: color .15s, background .15s, transform .15s;
+}
+.backbtn:hover { color: var(--bone); background: rgba(255,255,255,.14); transform: translateX(-2px); }
+.road-title { flex: 1; min-width: 0; }
+.road-title h2 { margin: 0; font: 800 clamp(20px, 2.6vw, 27px)/1 var(--sans); letter-spacing: -.03em; }
+.road-title span { font: 600 10.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.road-tro {
+  display: flex; align-items: center; gap: var(--s2); color: var(--chrono);
+  font: 750 19px/1 var(--sans); padding: var(--s2) var(--s4);
+  border-radius: 999px; background: rgba(255,214,138,.12);
+}
+.road-tro i { font-size: 15px; }
+
+/* The road itself: a spine down the left, nodes on it, rewards hanging off
+   it to the right. The spine is drawn as a background gradient on the
+   scroller rather than as an element per row, so it is one continuous line
+   however long the road gets. */
+.road {
+  position: relative; overflow-y: auto; overflow-x: hidden;
+  padding: var(--s4) var(--s5) var(--s9);
+  display: flex; flex-direction: column; gap: 2px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent;
+  background-image: linear-gradient(180deg, transparent, rgba(255,255,255,.13) 40px,
+                    rgba(255,255,255,.13) calc(100% - 120px), transparent);
+  background-size: 2px 100%; background-position: calc(var(--s5) + 26px) 0; background-repeat: no-repeat;
+}
+.road::-webkit-scrollbar { width: 8px; }
+.road::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px; }
+.road::-webkit-scrollbar-track { background: transparent; }
+.road.enter > * { animation: roadIn .42s var(--easeOut) backwards; }
+.road.enter > *:nth-child(1) { animation-delay: .02s }
+.road.enter > *:nth-child(2) { animation-delay: .05s }
+.road.enter > *:nth-child(3) { animation-delay: .08s }
+.road.enter > *:nth-child(4) { animation-delay: .11s }
+.road.enter > *:nth-child(5) { animation-delay: .14s }
+.road.enter > *:nth-child(n+6) { animation-delay: .17s }
+@keyframes roadIn { from { opacity: 0; transform: translateY(14px) } }
+
+/* ---- chapter banner ---- */
+.chapter { display: flex; align-items: center; gap: var(--s4); margin: var(--s6) 0 var(--s3); position: relative; }
+.chapter:first-child { margin-top: var(--s2); }
+.ch-line { width: 54px; height: 2px; background: linear-gradient(90deg, transparent, var(--tc)); flex: 0 0 auto; }
+.ch-body { display: flex; flex-direction: column; gap: 1px; }
+.ch-kicker { font: 650 9.5px/1 var(--mono); letter-spacing: .24em; text-transform: uppercase; color: var(--tc); opacity: .8; }
+.chapter h3 { margin: 0; font: 800 20px/1.1 var(--sans); letter-spacing: -.02em; color: var(--bone); }
+.ch-prog { font: 600 10.5px/1 var(--mono); letter-spacing: .06em; color: var(--faint); }
+.chapter.sealed h3 { color: var(--mute); }
+.chapter.sealed .ch-kicker { opacity: .5; }
+
+/* ---- level node ---- */
+.rnode {
+  position: relative; cursor: pointer; border: 0; color: inherit; font: inherit; text-align: left;
+  display: flex; align-items: center; gap: var(--s4);
+  padding: 7px var(--s3) 7px 0; border-radius: var(--r3);
+  background: none; transition: transform .16s var(--ease);
+  align-self: flex-start; max-width: 100%;
+}
+.rpip {
+  flex: 0 0 auto; width: 54px; height: 54px; border-radius: 50%;
+  display: grid; place-items: center; position: relative; z-index: 1;
+  font: 750 17px/1 var(--sans); letter-spacing: -.02em;
+}
+.rpip i { font-size: 20px; }
+.rinfo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rnum { font: 650 9px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--tc); opacity: .7; }
+.rnode.locked .rnum { color: rgba(255,255,255,.26); }
+.rname { font: 700 15px/1.15 var(--sans); letter-spacing: -.01em; }
+.rmeta { display: flex; align-items: center; gap: 5px; font: 600 10.5px/1 var(--mono); letter-spacing: .06em; }
+.rmeta i { font-size: 11px; }
+
+/* CLEARED — filled, quiet, done. It should read as settled, not as a prize;
+   the prize is the reward card next to it. */
+.rnode.done .rpip {
+  color: #05131a; background: linear-gradient(170deg, color-mix(in srgb, var(--tc) 100%, white 26%), var(--tc));
+  box-shadow: 0 1px 0 rgba(255,255,255,.45) inset, 0 6px 18px -8px var(--tc);
+}
+.rnode.done .rname { color: var(--bone); }
+.rnode.done .rmeta { color: var(--chrono); opacity: .85; }
+
+/* CURRENT — the only thing on the screen that moves. */
+.rnode.open .rpip {
+  color: var(--tc); background: rgba(8,14,26,.9);
+  box-shadow: 0 0 0 2px var(--tc) inset, 0 0 26px -6px var(--tc);
+}
+.rnode.open .rname { color: var(--bone); }
+.rnode.open .rmeta.go { color: var(--tc); }
+.rnode.target .rpip { animation: pipPulse 2.1s ease-in-out infinite; width: 62px; height: 62px; font-size: 20px; }
+.rnode.target .rname { font-size: 17px; }
+.rnode.target .rmeta.go { font-weight: 700; }
+@keyframes pipPulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--tc) inset, 0 0 24px -8px var(--tc); }
+  50% { box-shadow: 0 0 0 2px var(--tc) inset, 0 0 40px 2px color-mix(in srgb, var(--tc) 55%, transparent); }
+}
+.rnode.target::before {
+  content: ""; position: absolute; inset: 0 0 0 -8px; border-radius: var(--r3); z-index: -1;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--tc) 16%, transparent), transparent 62%);
+}
+
+/* LOCKED — visible, legible, and obviously not available. Not hidden: the
+   point of seeing it is wanting it. */
+.rnode.locked { cursor: not-allowed; }
+.rnode.locked .rpip { color: rgba(255,255,255,.28); background: rgba(255,255,255,.045); box-shadow: 0 0 0 1px rgba(255,255,255,.07) inset; }
+.rnode.locked .rname { color: rgba(255,255,255,.34); }
+.rnode.locked .rmeta { color: rgba(255,255,255,.2); }
+
+.rnode.boss .rpip { width: 62px; height: 62px; }
+.rnode.boss .rname { font-size: 16.5px; }
+.rnode.boss.done .rpip, .rnode.boss.open .rpip { box-shadow: 0 0 0 2px var(--tc) inset, 0 0 34px -6px var(--tc); }
+.rnode:not(.locked):hover { transform: translateX(3px); }
+.rnode:not(.locked):hover .rname { color: #fff; }
+
+.rmut {
+  margin-left: var(--s3); cursor: pointer; font-style: normal; flex: 0 0 auto;
+  padding: 5px var(--s2); border-radius: 999px;
+  background: rgba(255,255,255,.06); color: var(--faint);
+  font: 700 9px/1 var(--mono); letter-spacing: .06em;
+  transition: background .15s, color .15s;
+}
+.rmut:hover { color: var(--bone); background: rgba(255,255,255,.13); }
+.rmut.on { background: rgba(255,214,138,.2); color: var(--chrono); box-shadow: 0 0 0 1px var(--chrono) inset; }
+
+@keyframes nodeShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(2px)} }
+.rnode.shake { animation: nodeShake .34s ease; }
+@keyframes nodeUnlock {
+  0% { transform: scale(1) }
+  30% { transform: scale(1.09) }
+  100% { transform: scale(1) }
+}
+.rnode.unlocking .rpip { animation: nodeUnlock .7s var(--easeOut) 2; }
+.rnode.just::after {
+  content: ""; position: absolute; left: 0; top: 50%; width: 54px; height: 54px;
+  margin-top: -27px; border-radius: 50%; border: 2px solid var(--tc);
+  animation: justRing 1.2s var(--easeOut) 1 forwards; pointer-events: none;
+}
+@keyframes justRing { to { transform: scale(2.1); opacity: 0 } }
+
+/* ---- reward card ---- */
+.rrew { display: flex; align-items: center; margin: -3px 0; min-width: 0; max-width: 100%; }
+.rstub { width: 27px; height: 2px; background: rgba(255,255,255,.13); flex: 0 0 auto; margin-left: 27px; }
+.rrew-in {
+  display: flex; align-items: center; gap: var(--s4); min-width: 0; max-width: 100%; overflow: hidden;
+  padding: var(--s2) var(--s4); border-radius: var(--r2);
+  background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.018));
+  box-shadow: 0 1px 0 rgba(255,255,255,.07) inset;
+}
+.rpart { display: flex; align-items: baseline; gap: 6px; color: var(--mute); white-space: nowrap; min-width: 0; }
+.rpart b { overflow: hidden; text-overflow: ellipsis; }
+.rpart i { font-size: 12px; align-self: center; opacity: .8; }
+.rpart b { font: 700 12.5px/1 var(--sans); color: var(--bone); }
+.rpart em { font: 600 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; font-style: normal; opacity: .5; }
+/* a milestone hands over something you keep, so it gets the arena's colour
+   and a little light; an ordinary shard payout stays grey */
+.rrew.milestone .rrew-in {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tc) 16%, transparent), color-mix(in srgb, var(--tc) 5%, transparent));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--tc) 30%, transparent) inset;
+}
+.rrew.milestone .rpart i { color: var(--tc); opacity: 1; }
+.rrew.claimed .rrew-in { opacity: .42; }
+.rclaim { display: grid; place-items: center; color: var(--tc); font-size: 12px; margin-left: auto; flex: 0 0 auto; }
+
+.road-tip {
+  position: absolute; left: 50%; bottom: var(--s5); transform: translate(-50%, 14px);
+  padding: var(--s3) var(--s5); border-radius: 999px; pointer-events: none;
+  background: rgba(12,17,32,.96); box-shadow: 0 1px 0 rgba(255,255,255,.1) inset, 0 12px 30px -12px #000;
+  font: 650 12px/1 var(--sans); color: var(--bone); letter-spacing: -.005em;
+  opacity: 0; transition: opacity .2s, transform .24s var(--easeOut);
+}
+.road-tip.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* ==================================================================
+   TUTORIAL
+   ================================================================== */
+/* Sits over the live game, never blocks it, and says one thing at a time.
+   Bottom-centre because that is where the eye is not: the fight is in the
+   middle of the screen and the prompt must not compete with it. */
+#tutor { position: fixed; inset: 0; z-index: 22; pointer-events: none; display: none; }
+#tutor.on { display: block; }
+.tut-card {
+  position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: var(--s1);
+  padding: var(--s3) var(--s6); border-radius: var(--r3); text-align: center;
+  background: linear-gradient(180deg, rgba(10,15,28,.9), rgba(6,9,18,.9));
+  box-shadow: 0 1px 0 rgba(255,255,255,.1) inset, 0 20px 50px -22px #000;
+}
+.tut-step { font: 650 9px/1 var(--mono); letter-spacing: .22em; color: var(--faint); }
+.tut-card b { font: 800 clamp(20px, 3vw, 28px)/1 var(--sans); letter-spacing: .01em; color: var(--signal); }
+.tut-sub { font: 650 11px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--bone); opacity: .8; }
+.tut-hint { font: 500 11.5px/1.35 var(--sans); color: var(--mute); max-width: 34ch; }
+#tutor.beat .tut-card { animation: tutBeat .5s var(--easeOut); }
+@keyframes tutBeat { from { opacity: 0; transform: translate(-50%, 16px) } }
+#tutor.clear .tut-card { animation: tutClear .42s var(--ease) forwards; }
+@keyframes tutClear { to { opacity: 0; transform: translate(-50%, -10px) scale(1.04) } }
+.tut-skip {
+  position: absolute; right: var(--s5); top: var(--s5); pointer-events: auto;
+  cursor: pointer; border: 0; background: rgba(255,255,255,.07); color: var(--faint);
+  font: 600 10.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  padding: var(--s2) var(--s4); border-radius: 999px; transition: color .15s, background .15s;
+}
+.tut-skip:hover { color: var(--bone); background: rgba(255,255,255,.14); }
+
+/* ==================================================================
+   RESPONSIVE
+   ================================================================== */
+@media (max-width: 860px) {
+  .home-in { grid-template-rows: auto auto auto; align-content: space-between; }
+  .home-actions { max-width: none; align-self: stretch; }
+  .road-wrap { width: 100%; }
+}
+@media (max-width: 620px) {
+  .home-in { padding: var(--s5) var(--s4) var(--s4); gap: var(--s4); }
+  .wordmark { font-size: clamp(30px, 11vw, 46px); }
+  .play { padding: var(--s4) var(--s5); border-radius: var(--r3); }
+  .tiles { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .tile { padding: var(--s2) 2px; }
+  .tile span { font-size: 8.5px; letter-spacing: .04em; }
+  .home-foot { gap: var(--s3); font-size: 10px; }
+  .hprog { min-width: 130px; flex: 1; }
+  .road { padding: var(--s3) var(--s4) var(--s8); background-position: calc(var(--s4) + 22px) 0; }
+  .road-head { padding: var(--s4) var(--s4) var(--s2); }
+  .rpip { width: 46px; height: 46px; font-size: 15px; }
+  .rnode.boss .rpip { width: 52px; height: 52px; }
+  .rnode { gap: var(--s3); }
+  .rstub { margin-left: 22px; width: 20px; }
+  .rname { font-size: 13.5px; }
+  .rrew-in { gap: var(--s3); padding: 6px var(--s3); }
+  .rpart em { display: none; }
+  .tut-card { bottom: 14%; padding: var(--s3) var(--s4); }
+  .tut-skip { right: var(--s3); top: var(--s3); }
+}
+@media (max-height: 640px) {
+  .home-in { gap: var(--s3); }
+  .wordmark { font-size: clamp(28px, 5vw, 44px); }
+  .play { padding: var(--s3) var(--s5); }
+}
+
+/* Reduced effects: the setting exists for people who need it, so it has to
+   actually turn the motion off rather than just dim it. */
+body.reduced .play-glow,
+body.reduced .rnode.target .rpip { animation: none !important; }
+body.reduced .road.enter > * { animation: none !important; }
+
+/* ==================================================================
+   LEVEL COMPLETE
+   ================================================================== */
+/* Centred, narrow, and staged. Everything is in one column with one
+   alignment — the old version had a left-aligned block inside a panel with
+   a stat row that ran to a different edge, which is the layout equivalent of
+   mumbling. */
+#levelResult { padding: 0; }
+.lr {
+  position: relative; height: 100%; width: min(520px, 92vw); margin: 0 auto;
+  display: flex; flex-direction: column; justify-content: center; gap: var(--s5);
+  padding: var(--s6) 0;
+}
+.lr-head { display: flex; flex-direction: column; gap: var(--s1); }
+.lr-kicker { font: 650 10px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--faint); }
+.lr-title {
+  margin: 0; font: 800 clamp(30px, 5vw, 46px)/.96 var(--sans); letter-spacing: -.035em;
+  color: var(--signal);
+}
+#levelResult.failed .lr-title { color: var(--threat); }
+
+.lr-tro { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; color: var(--chrono); }
+.lr-tro > i { font-size: 26px; }
+.lr-tro b { font: 750 clamp(38px, 6vw, 54px)/1 var(--sans); letter-spacing: -.03em; }
+.lr-tro > span { font: 600 11px/1.3 var(--mono); letter-spacing: .08em; color: var(--faint); }
+.lr-bonus { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; }
+.lr-bonus .bonus {
+  font: 700 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  padding: 5px 8px; border-radius: 999px;
+  background: rgba(255,214,138,.16); color: var(--chrono);
+  animation: popIn .34s var(--easeOut) backwards;
+}
+@keyframes popIn { from { opacity: 0; transform: scale(.8) translateY(4px) } }
+
+.lr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s3); }
+.lr-stat { display: flex; flex-direction: column; gap: 3px; }
+.lr-stat b { font: 750 20px/1 var(--sans); letter-spacing: -.02em; color: var(--bone); }
+.lr-stat span { font: 600 9.5px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+
+.lr-rewards { display: flex; flex-direction: column; gap: 6px; }
+.lr-reward {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s4); border-radius: var(--r2);
+  background: linear-gradient(180deg, rgba(255,214,138,.12), rgba(255,214,138,.04));
+  box-shadow: 0 1px 0 rgba(255,214,138,.2) inset;
+  animation: rewIn .36s var(--easeOut) backwards;
+}
+@keyframes rewIn { from { opacity: 0; transform: translateX(-10px) } }
+.lr-reward i { font: 700 9px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  color: var(--chrono); font-style: normal; opacity: .75; }
+.lr-reward b { font: 700 13px/1 var(--sans); color: var(--bone); }
+
+/* the unlock: the loudest thing on the screen, and the last to arrive */
+.lr-unlock { display: none; }
+.lr-unlock.on {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4); border-radius: var(--r2);
+  background: linear-gradient(100deg, rgba(111,242,255,.2), rgba(111,242,255,.05));
+  box-shadow: 0 1px 0 rgba(111,242,255,.3) inset, 0 0 30px -12px var(--signal);
+  animation: unlockIn .5s var(--easeOut) backwards;
+}
+@keyframes unlockIn { from { opacity: 0; transform: translateY(10px) scale(.97) } }
+.lr-unlock i { font-size: 18px; color: var(--signal); }
+.lr-unlock span { display: flex; flex-direction: column; gap: 1px;
+  font: 500 11.5px/1.3 var(--sans); color: var(--mute); }
+.lr-unlock b { font: 750 14px/1 var(--sans); letter-spacing: -.01em; color: var(--signal); }
+.lr-unlock.big { animation: unlockIn .5s var(--easeOut) backwards, unlockGlow 2.4s ease-in-out 1.2s infinite; }
+@keyframes unlockGlow {
+  0%,100% { box-shadow: 0 1px 0 rgba(111,242,255,.3) inset, 0 0 30px -12px var(--signal) }
+  50% { box-shadow: 0 1px 0 rgba(111,242,255,.4) inset, 0 0 46px -6px var(--signal) }
+}
+
+.lr-actions { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.btn-primary {
+  cursor: pointer; border: 0; color: #04121a; font: inherit;
+  padding: var(--s3) var(--s6); border-radius: var(--r2);
+  background: linear-gradient(170deg, #9dfcff, var(--signal) 50%, #2cbedc);
+  box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 14px 30px -16px rgba(111,242,255,.85);
+  transition: transform .15s var(--ease), filter .15s;
+}
+.btn-primary span { font: 800 14px/1 var(--sans); letter-spacing: .04em; }
+.btn-primary:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-ghost {
+  cursor: pointer; border: 0; color: var(--mute); font: 650 12px/1 var(--sans);
+  padding: var(--s3) var(--s4); border-radius: var(--r2);
+  background: rgba(255,255,255,.06); transition: color .15s, background .15s;
+}
+.btn-ghost:hover { color: var(--bone); background: rgba(255,255,255,.13); }
+
+#levelResult.run .lr > * { animation: lrIn .5s var(--easeOut) backwards; }
+#levelResult.run .lr-head { animation-delay: .04s }
+#levelResult.run .lr-tro { animation-delay: .12s }
+#levelResult.run .lr-stats { animation-delay: .2s }
+@keyframes lrIn { from { opacity: 0; transform: translateY(12px) } }
+
+@media (max-width: 620px) {
+  .lr { width: 92vw; gap: var(--s4); }
+  .lr-stats { grid-template-columns: repeat(2, 1fr); gap: var(--s2) var(--s3); }
+  .lr-actions { flex-direction: column; align-items: stretch; }
+  .btn-primary, .btn-ghost { text-align: center; }
+}
+
+/* ==================================================================
+   LOADOUT / COLLECTION
+   ================================================================== */
+#shop { padding: 0; }
+.lab {
+  position: relative; height: 100%; width: min(880px, 100%); margin: 0 auto;
+  display: grid; grid-template-rows: auto auto auto 1fr; gap: var(--s4);
+  padding: var(--s5) var(--s5) 0;
+}
+.lab-head { display: flex; align-items: center; gap: var(--s4); }
+.road-tro.shards { color: var(--chrono); background: rgba(255,214,138,.12); }
+
+/* the three slots: the actual decision this screen exists for, so they are
+   pinned above the catalogue rather than being a row you scroll past */
+.lab-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.slot {
+  cursor: pointer; border: 0; color: inherit; font: inherit; text-align: left;
+  display: flex; flex-direction: column; gap: 2px; min-height: 62px; justify-content: center;
+  padding: var(--s3) var(--s4); border-radius: var(--r2); position: relative;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.016));
+  box-shadow: 0 1px 0 rgba(255,255,255,.07) inset;
+  transition: background .15s, box-shadow .15s, transform .15s var(--ease);
+}
+.slot-n { position: absolute; top: 8px; right: 11px; font: 700 10px/1 var(--mono); color: var(--faint); }
+.slot-name { font: 700 14px/1 var(--sans); letter-spacing: -.01em; color: var(--bone); }
+.slot-name.empty { color: rgba(255,255,255,.3); }
+.slot-tag { font: 600 9.5px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); }
+.slot.filled { background: linear-gradient(180deg, rgba(176,125,255,.22), rgba(176,125,255,.05));
+  box-shadow: 0 1px 0 rgba(176,125,255,.3) inset; }
+.slot:hover { transform: translateY(-2px); }
+.slot.picking { box-shadow: 0 0 0 2px var(--chrono) inset; }
+
+.lab-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.labtab {
+  cursor: pointer; border: 0; font: inherit; color: var(--faint);
+  display: flex; align-items: baseline; gap: 7px;
+  padding: var(--s2) var(--s4); border-radius: 999px; background: rgba(255,255,255,.05);
+  transition: color .15s, background .15s;
+}
+.labtab span { font: 700 11.5px/1 var(--sans); }
+.labtab em { font: 600 9.5px/1 var(--mono); font-style: normal; opacity: .7; }
+.labtab:hover { color: var(--bone); background: rgba(255,255,255,.1); }
+.labtab.on { color: #04121a; background: var(--signal); }
+.labtab.on em { opacity: .6; }
+
+.lab-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: var(--s2); overflow-y: auto; padding-bottom: var(--s7); align-content: start;
+  scrollbar-width: thin;
+}
+.lab-grid::-webkit-scrollbar { width: 8px }
+.lab-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px }
+.card {
+  cursor: pointer; position: relative; display: flex; flex-direction: column; gap: 5px;
+  padding: var(--s4); border-radius: var(--r2); min-height: 132px;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.016));
+  box-shadow: 0 1px 0 rgba(255,255,255,.07) inset;
+  transition: background .15s, box-shadow .15s, transform .15s var(--ease);
+}
+.card:hover { transform: translateY(-2px); background: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.03)); }
+.card.open { grid-column: 1 / -1; }
+.card.equipped { box-shadow: 0 1px 0 rgba(176,125,255,.35) inset, 0 0 0 1px rgba(176,125,255,.45) inset; }
+.card-fam { font: 650 9px/1 var(--mono); letter-spacing: .2em; text-transform: uppercase; color: var(--echo); opacity: .8; }
+.card h4 { margin: 0; font: 750 15px/1.15 var(--sans); letter-spacing: -.015em; color: var(--bone); }
+.card-tag { font: 600 9.5px/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+.card-line { margin: 2px 0 0; font: 500 12px/1.45 var(--sans); color: var(--mute); }
+.card-syn { margin: var(--s2) 0 0; font: 500 11.5px/1.5 var(--sans); color: var(--faint); }
+.card-syn b { color: var(--mute); font-weight: 650; }
+.card-foot { margin-top: auto; padding-top: var(--s2); }
+.card-btn {
+  cursor: pointer; border: 0; font: 700 11px/1 var(--sans); color: var(--bone);
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: var(--s2) var(--s4); border-radius: 999px; background: rgba(255,255,255,.1);
+  transition: background .15s, color .15s;
+}
+.card-btn i { font-size: 10px; color: var(--chrono); }
+.card-btn:hover { background: rgba(255,255,255,.18); }
+.card-btn.have { background: rgba(111,242,255,.18); color: var(--signal); }
+.card-btn.on { background: var(--echo); color: #120a22; }
+.card-btn.poor { opacity: .45; }
+
+/* cosmetics get a live preview instead of a description, because what a
+   trail looks like is the entire question */
+.lab-grid.cos { grid-template-columns: repeat(auto-fill, minmax(206px, 1fr)); }
+.card.cos { padding: 0; overflow: hidden; min-height: 0; }
+.card-prev { width: 100%; height: 104px; display: block; background: rgba(0,0,0,.28); }
+.card-body { padding: var(--s3) var(--s4) 0; display: flex; flex-direction: column; gap: 3px; }
+.card.cos .card-btn { margin: var(--s3) var(--s4) var(--s4); align-self: flex-start; }
+
+@media (max-width: 620px) {
+  .lab { padding: var(--s4) var(--s4) 0; gap: var(--s3); }
+  .lab-slots { grid-template-columns: 1fr; gap: 6px; }
+  .slot { min-height: 0; padding: var(--s2) var(--s3); }
+  .lab-grid { grid-template-columns: 1fr; }
+}
+
+/* ==================================================================
+   SETTINGS
+   ================================================================== */
+.lab.set { width: min(560px, 100%); grid-template-rows: auto 1fr auto; }
+.settings-body { overflow-y: auto; padding-bottom: var(--s4); scrollbar-width: thin; }
+.settings-body::-webkit-scrollbar { width: 8px }
+.settings-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px }
+.set-group {
+  font: 650 9.5px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase;
+  color: var(--signal); opacity: .7; margin: var(--s5) 0 var(--s2);
+}
+.set-group:first-child { margin-top: 0; }
+.setting {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s5);
+  padding: var(--s3) 0; border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.setting > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setting b { font: 650 13.5px/1.2 var(--sans); color: var(--bone); }
+.setting small { font: 500 11px/1.3 var(--sans); color: var(--faint); }
+.setting input[type="range"] { flex: 0 0 180px; }
+.set-foot { padding: var(--s4) 0; }
+.btn-ghost.danger { color: rgba(255,120,140,.75); }
+.btn-ghost.danger:hover { color: #fff; background: rgba(255,90,124,.22); }
+@media (max-width: 620px) {
+  .lab.set { width: 100%; }
+  .setting { gap: var(--s3); }
+  .setting input[type="range"] { flex: 0 0 120px; }
+}
+
+/* ==================================================================
+   HUD REACTIONS
+   ================================================================== */
+/* Two events, two reactions. Anything more and the HUD becomes another
+   thing competing with the fight for the player's attention. */
+.integrity.hit { animation: hpHit .26s var(--ease); }
+@keyframes hpHit {
+  0% { transform: translateX(0) }
+  25% { transform: translateX(-3px) scaleY(1.5) }
+  60% { transform: translateX(2px) scaleY(1.2) }
+  100% { transform: translateX(0) scaleY(1) }
+}
+.integrity.low { animation: hpLow 1.15s ease-in-out infinite; }
+@keyframes hpLow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,90,124,0) }
+  50% { box-shadow: 0 0 14px 1px rgba(255,90,124,.55) }
+}
+#hud.boss { animation: hudBoss .9s var(--ease); }
+@keyframes hudBoss {
+  0% { filter: none }
+  18% { filter: brightness(1.8) saturate(1.4) }
+  100% { filter: none }
+}
+body.reduced .integrity.low,
+body.reduced .integrity.hit,
+body.reduced #hud.boss { animation: none !important; }
+
+/* The app is a fixed viewport: every screen scrolls its own body, and the
+   page behind them never does. Without this a screen that is one pixel too
+   wide gives the whole document a scrollbar and the canvas resizes under it. */
+html, body { overflow: hidden; overscroll-behavior: none; }
+
+/* archive entries in the Collection grid */
+.lab-grid.lore { grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
+.card.lorecard { min-height: 116px; }
+.card.lorecard .card-fam { color: var(--chrono); }
+.card.sealed { cursor: default; opacity: .55; }
+.card.sealed:hover { transform: none; }
+.card.sealed h4, .card.sealed .card-line { font-family: var(--mono); letter-spacing: .04em; }
+.card.sealed .card-fam { color: var(--faint); }
+
+/* ==================================================================
+   PAUSE / HELP
+   ================================================================== */
+#pause { padding: 0; }
+.pause {
+  position: relative; height: 100%; width: min(380px, 88vw); margin: 0 auto;
+  display: flex; flex-direction: column; justify-content: center; gap: var(--s4);
+}
+.pause h2 { margin: 0; font: 800 clamp(30px, 5vw, 44px)/1 var(--sans); letter-spacing: -.035em; color: var(--bone); }
+/* Not four identical bars. One primary, two equal secondaries side by side,
+   and the destructive one demoted to a text link — three weights, so the
+   stack has a shape instead of being a list. */
+.pause-acts { display: flex; flex-direction: column; gap: var(--s2); align-items: stretch; }
+.pause-acts .btn-primary { text-align: center; padding: var(--s4); }
+.pause-minor { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pause-minor .btn-ghost { text-align: center; }
+.linkbtn {
+  cursor: pointer; border: 0; background: none; color: var(--faint);
+  font: 600 11px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase;
+  padding: var(--s3); margin-top: var(--s2); transition: color .15s;
+}
+.linkbtn:hover { color: rgba(255,120,140,.9); }
+
+#guide { padding: 0; }
+.lab.guide { width: min(720px, 100%); grid-template-rows: auto 1fr; }
+/* The old rule made this a two-column grid, which splits a single column of
+   content into unrelated halves. One column, and the bestiary grids inside
+   it instead. */
+.lab.guide .guide-body {
+  display: block; overflow-y: auto; padding-bottom: var(--s7); scrollbar-width: thin;
+}
+.guide-body::-webkit-scrollbar { width: 8px }
+.guide-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 4px }
+.guide-body h4 {
+  margin: var(--s6) 0 var(--s3); font: 650 9.5px/1 var(--mono);
+  letter-spacing: .22em; text-transform: uppercase; color: var(--signal); opacity: .7;
+}
+.keycard { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 6px; }
+.kc {
+  display: flex; flex-direction: column; gap: 3px; padding: var(--s3) var(--s4); border-radius: var(--r2);
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.016));
+  box-shadow: 0 1px 0 rgba(255,255,255,.07) inset;
+}
+.kk { font: 700 9.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--signal); }
+.kc b { font: 700 14px/1 var(--sans); letter-spacing: -.01em; color: var(--bone); }
+.kc em { font: 500 11.5px/1.4 var(--sans); font-style: normal; color: var(--faint); }
+.guide-body .tips { margin: var(--s5) 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s2); }
+.guide-body .tips li {
+  position: relative; padding-left: var(--s4);
+  font: 500 12.5px/1.5 var(--sans); color: var(--mute);
+}
+.guide-body .tips li::before {
+  content: ""; position: absolute; left: 0; top: .55em; width: 5px; height: 5px;
+  background: var(--signal); opacity: .6;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.guide-body .tips b { color: var(--bone); font-weight: 650; }
+@media (max-width: 620px) {
+  .lab.guide { width: 100%; }
+  .keycard { grid-template-columns: 1fr; }
+}
+
+.lab.guide .bestiary {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: var(--s3);
+}
+@media (max-width: 620px) { .lab.guide .bestiary { grid-template-columns: 1fr; } }

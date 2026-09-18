@@ -56,7 +56,7 @@ function updateWaveDots() {
   $("#lvlNum").textContent = levelLabel();
   $("#lvlName").textContent = L.name.toLowerCase();
 }
-let ghostHp = 1;
+let ghostHp = 1, hudHp = 1;
 function updateHUD() {
   const p = G.player;
   if (!p) return;
@@ -67,7 +67,14 @@ function updateHUD() {
   $("#hpGhost").style.transform = "scaleX(" + clamp(ghostHp, frac, 1) + ")";
   ghostHp = ghostHp > frac ? ghostHp - .004 : frac;
   $("#hpNum").textContent = Math.ceil(p.hp);
-  $("#intBar").classList.toggle("low", frac < .32);
+  /* The HUD reacts to the two things that actually matter in the moment:
+     taking a hit, and being nearly dead. Everything else on it is static
+     information and should stay still — a HUD where five things animate at
+     once is a HUD you stop reading. */
+  const bar = $("#intBar");
+  bar.classList.toggle("low", frac < .32);
+  if (hudHp > frac + .001) { bar.classList.remove("hit"); void bar.offsetWidth; bar.classList.add("hit"); }
+  hudHp = frac;
   $("#surgeFill").style.transform = "scaleX(" + (p.surgeActive > 0 ? p.surgeActive / 5 : p.surge / 100) + ")";
   const sp = $("#shieldPips");
   if (sp.dataset.n !== String(p.shield)) {
@@ -138,19 +145,17 @@ function show(name) {
   currentScreen = name;
   $("#app").classList.toggle("playing", name === "none" && !G.attract);
 }
+/* The home screen's four-record row is gone — for a new player it was four
+   em-dashes, which reads as broken rather than as empty. What replaced it is
+   one progress bar and the trophy count, filled in by refreshShell() in
+   18-shell.js. Everything here is optional-by-id so neither screen can break
+   the other. */
 function refreshHome() {
-  /* the Trophy Road's total is the headline progress number now — it is the
-     one figure that goes up permanently and never resets */
-  const rt = $("#recTrophies");
-  if (rt) rt.textContent = SAVE.trophiesTotal ? fmt(SAVE.trophiesTotal) : "—";
-  $("#recLevel").textContent = SAVE.bestLevel || "—";
-  $("#recWave").textContent = SAVE.bestWave || "—";
-  $("#recScore").textContent = SAVE.bestScore ? fmt(SAVE.bestScore) : "—";
-  const ss = $("#menuSurvSub");
-  if (ss) ss.textContent = SAVE.bestWave
-    ? "Best: wave " + SAVE.bestWave + " · " + fmtClock(SAVE.bestTime || 0)
-    : "Endless waves, nothing to reach";
-  $("#menuShards").textContent = SAVE.shards > 0 ? fmt(SAVE.shards) + " shards banked" : "Permanent upgrades";
+  const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+  set("#recTrophies", SAVE.trophiesTotal ? fmt(SAVE.trophiesTotal) : "—");
+  set("#recLevel", SAVE.bestLevel || "—");
+  set("#recWave", SAVE.bestWave || "—");
+  set("#recScore", SAVE.bestScore ? fmt(SAVE.bestScore) : "—");
   if (typeof refreshBranchHome === "function") refreshBranchHome();
 }
 function goHome() {
@@ -219,6 +224,10 @@ function showLevelCard(L) {
   Audio_.levelIn();
 }
 function showResults(banked, best) {
+  /* Survival's own results screen. It shares the level-complete layout so
+     the two do not read as two different games, but it keeps its own copy:
+     there is no level to have completed and nothing to unlock. */
+  $("#resultHead").textContent = "RUN OVER";
   $("#resultScore").textContent = fmt(G.score);
   $("#resLevel").textContent = G.survival ? G.wave : G.loop * LEVELS.length + G.levelIdx + 1;
   $("#resLevelLabel").textContent = G.survival ? "wave reached" : "level reached";
@@ -226,94 +235,141 @@ function showResults(banked, best) {
   const m = Math.floor(G.runTime / 60), s = Math.floor(G.runTime % 60);
   $("#resTime").textContent = m + ":" + String(s).padStart(2, "0");
   $("#resShards").textContent = fmt(banked);
-  $("#newBestWrap").innerHTML = best ? '<div class="newbest"><i class="shard"></i>New personal best</div>' : "";
+  $("#newBestWrap").innerHTML = best ? '<span class="bonus">New personal best</span>' : "";
   $("#resultTitle").textContent = G.survival
-    ? "Timeline broken on wave " + G.wave
-    : "Timeline broken in " + curLevel().name;
+    ? "Endless · wave " + G.wave
+    : curLevel().name;
   show("results");
 }
-/* ---------------- the level results screen -----------------------------
-   The other half of the run-loop change: a story level ends HERE and hands
-   you back to the map, rather than chaining into the next level. It is the
-   only place the player is shown what an attempt was worth, so it has to
-   answer three things at once — what you banked, whether it beat your
-   record, and what the first clear paid out. */
+/* ---------------- LEVEL COMPLETE ----------------------------------------
+   The payoff screen, and the second half of the run-loop change: a level
+   ends here and hands you back to the road.
+
+   It is staged rather than dumped. Everything lands in sequence — title,
+   trophies counting up, stats, each reward in turn, then the unlock — over
+   about a second and a half, because a result that appears all at once reads
+   as a form and a result that arrives in beats reads as a reward. Each beat
+   has its own sound. */
+let lrTimers = [];
+function lrClearTimers() { lrTimers.forEach(clearTimeout); lrTimers = []; }
+function lrAt(ms, fn) { lrTimers.push(setTimeout(fn, ms)); }
+
 function showLevelResults(cleared, banked, res) {
+  lrClearTimers();
   const L = curLevel(), idx = G.levelIdx, arena = TL.id;
   const rec = levelRec(arena, idx);
-  $("#lrEyebrow").textContent = TL.name + " · level " + (idx + 1) + " · " +
-    TIER_NAME[L.tier || TIER_OF(idx)].toLowerCase();
-  $("#lrTitle").textContent = cleared
-    ? (res && res.firstClear ? L.name + " — first clear" : L.name + " cleared")
-    : "Broken on wave " + G.wave + " of " + L.waves;
-  $("#lrTitle").className = "lr-title" + (cleared ? " good" : " bad");
+  const root = $("#levelResult");
+  root.classList.toggle("failed", !cleared);
 
-  $("#lrTrophies").textContent = fmt(res ? res.gained : 0);
-  /* the bonuses, as the multipliers they actually were */
+  $("#lrEyebrow").textContent = TL.name + " · Level " + (idx + 1) + " · " + L.name;
+  $("#lrTitle").textContent = cleared
+    ? (res && res.firstClear ? "LEVEL COMPLETE" : "CLEARED AGAIN")
+    : "TIMELINE BROKEN";
+
+  /* trophies count up rather than appear — the number is the score, and a
+     number that moves is a number people watch */
+  const got = res ? res.gained : 0;
+  const troEl = $("#lrTrophies");
+  troEl.textContent = "0";
+  $("#lrBest").textContent = cleared
+    ? "best " + fmt(rec.trophies) + " of " + fmt(levelMaxTrophies(arena, idx))
+    : "reached wave " + G.wave + " of " + L.waves;
+
   const bb = $("#lrBonus");
   bb.innerHTML = "";
+  $("#lrScore").textContent = fmt(G.score);
+  $("#lrTime").textContent = fmtClock(G.levelT);
+  $("#lrKills").textContent = G.kills;
+  $("#lrHits").textContent = G.levelHits;
+
+  const rw = $("#lrRewards"); rw.innerHTML = "";
+  const un = $("#lrUnlock"); un.innerHTML = ""; un.className = "lr-unlock";
+
+  /* Next only exists when there is a next and it is open. A dead primary
+     button is worse than no primary button. */
+  const hasNext = idx + 1 < LEVELS_PER_ARENA && levelUnlocked(arena, idx + 1);
+  const nextArena = idx + 1 >= LEVELS_PER_ARENA
+    ? TIMELINES.find((t) => t.unlockedBy === arena) : null;
+  const nb = $("#lrNext");
+  if (hasNext) {
+    nb.style.display = "";
+    nb.querySelector("span").textContent = "NEXT LEVEL";
+    nb.onclick = () => { uiSfx("press"); lrClearTimers(); transitionTo(() => enterLevel(arena, idx + 1, 0)); };
+  } else if (nextArena && arenaUnlocked(nextArena.id)) {
+    nb.style.display = "";
+    nb.querySelector("span").textContent = "ENTER " + nextArena.name.toUpperCase();
+    nb.onclick = () => { uiSfx("press"); lrClearTimers(); transitionTo(() => enterLevel(nextArena.id, 0, 0)); };
+  } else {
+    nb.style.display = "none";
+  }
+  $("#lrRetry").textContent = G.mutation ? "Replay · mutation" : "Replay";
+  $("#lrRetry").onclick = () => { uiSfx("press"); lrClearTimers(); transitionTo(() => enterLevel(arena, idx, G.mutation)); };
+
+  show("levelResult");
+  root.classList.remove("run"); void root.offsetWidth; root.classList.add("run");
+  if (cleared) Audio_.levelDone(); else Audio_.death();
+
+  /* ---- the beats ---- */
+  lrAt(260, () => countUp(troEl, got, 620));
   if (res && res.bonuses.length) {
-    res.bonuses.forEach((b) => {
+    res.bonuses.forEach((b, i) => lrAt(700 + i * 160, () => {
       const el = document.createElement("span");
       el.className = "bonus";
       el.textContent = "+" + Math.round(b.pct * 100) + "% " + b.label;
       bb.appendChild(el);
-    });
-  } else if (cleared) {
-    bb.innerHTML = '<span class="bonus off">no bonuses — try it untouched, under ' +
-      Math.round(L.par || 90) + 's, or with a mutation</span>';
-  } else {
-    bb.innerHTML = '<span class="bonus off">' + Math.round((res ? res.gained : 0) /
-      Math.max(1, levelBaseTrophies(arena, idx)) * 100) + '% of the level — a failed attempt still banks</span>';
+      Audio_.rewardPop(i);
+    }));
   }
-  /* "best ever" is the number that matters, so it is stated even when this
-     attempt did not move it — banking less than your record is not a loss */
-  const best = $("#lrBest");
-  best.className = "lr-best" + (res && res.improved ? " up" : "");
-  best.innerHTML = res && res.improved
-    ? "<b>New best</b> · " + fmt(res.prev) + " → " + fmt(res.best) +
-      " of a possible " + fmt(levelMaxTrophies(arena, idx))
-    : "Best on this level: <b>" + fmt(rec.trophies) + "</b> of a possible " +
-      fmt(levelMaxTrophies(arena, idx));
-
-  $("#lrKills").textContent = G.kills;
-  $("#lrTime").textContent = fmtClock(G.levelT);
-  $("#lrHits").textContent = G.levelHits;
-  $("#lrShards").textContent = fmt(banked);
-
-  /* first-clear payouts and any ladder rungs crossed, in one list */
-  const rw = $("#lrRewards");
-  rw.innerHTML = "";
+  const rewardAt = 700 + (res && res.bonuses.length ? res.bonuses.length * 160 : 0) + 180;
   const blocks = [];
-  if (res && res.paid) blocks.push(res.paid);
-  if (res && res.rungs && res.rungs.length) {
+  if (res && res.paid) blocks.push({ why: "First clear", items: res.paid.items });
+  if (res && res.rungs) res.rungs.forEach((r) => {
     const items = [];
-    res.rungs.forEach((r) => {
-      const g = { why: "Arena ladder", items: [] };
-      if (r.shards) g.items.push({ label: fmt(r.shards) + " shards" });
-      if (r.cosmetic) g.items.push({ label: (cosmOf(r.cosmetic) || {}).name || r.cosmetic });
-      if (r.ability) g.items.push({ label: (abilOf(r.ability) || {}).name || r.ability });
-      items.push(g);
-    });
-    items.forEach((g) => blocks.push(g));
-  }
-  blocks.forEach((g) => {
-    if (!g || !g.items || !g.items.length) return;
+    if (r.shards) items.push({ label: fmt(r.shards) + " shards" });
+    if (r.cosmetic) items.push({ label: (cosmOf(r.cosmetic) || {}).name || r.cosmetic });
+    if (r.ability) items.push({ label: (abilOf(r.ability) || {}).name || r.ability });
+    if (items.length) blocks.push({ why: "Trophy ladder", items });
+  });
+  if (banked > 0) blocks.push({ why: "Banked", items: [{ label: fmt(banked) + " shards" }] });
+  blocks.forEach((g, i) => lrAt(rewardAt + i * 220, () => {
     const el = document.createElement("div");
     el.className = "lr-reward";
-    el.innerHTML = "<i>" + g.why + "</i>" + g.items.map((x) => "<b>" + x.label + "</b>").join("");
+    el.innerHTML = "<i>" + g.why + "</i>" +
+      g.items.map((x) => "<b>" + x.label + "</b>").join("");
     rw.appendChild(el);
-  });
+    Audio_.rewardPop(2 + i);
+  }));
 
-  /* Next only exists if there is a next and it is open */
-  const hasNext = idx + 1 < LEVELS_PER_ARENA && levelUnlocked(arena, idx + 1);
-  const nb = $("#lrNext");
-  nb.style.display = hasNext ? "" : "none";
-  nb.textContent = hasNext ? "Level " + (idx + 2) : "Next level";
-  nb.onclick = () => { Audio_.confirm(); enterLevel(arena, idx + 1, 0); };
-  $("#lrRetry").textContent = G.mutation ? "Replay · mutation" : "Replay";
-  $("#lrRetry").onclick = () => { Audio_.confirm(); enterLevel(arena, idx, G.mutation); };
-  show("levelResult");
+  /* the unlock, last and loudest, because it is the reason to press NEXT */
+  if (res && res.unlockedNext && hasNext) {
+    const nxt = tlOf(arena).levels[idx + 1];
+    lrAt(rewardAt + blocks.length * 220 + 260, () => {
+      un.className = "lr-unlock on";
+      un.innerHTML = '<i class="ic-lock open"></i><span><b>Level ' + (idx + 2) +
+        " unlocked</b>" + nxt.name + "</span>";
+      Audio_.unlockFx();
+      flagRoadUnlock(arena, idx + 1);
+    });
+  } else if (nextArena && arenaUnlocked(nextArena.id) && res && res.firstClear) {
+    lrAt(rewardAt + blocks.length * 220 + 260, () => {
+      un.className = "lr-unlock on big";
+      un.innerHTML = '<i class="ic-lock open"></i><span><b>' + nextArena.name +
+        " unlocked</b>a new sector is online</span>";
+      Audio_.unlockFx();
+      flagRoadUnlock(nextArena.id, 0);
+    });
+  }
+}
+/* a number that animates to its value, eased, and always lands exactly */
+function countUp(el, to, ms) {
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / ms);
+    const e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(Math.round(to * e));
+    if (k < 1) requestAnimationFrame(step); else el.textContent = fmt(to);
+  };
+  requestAnimationFrame(step);
 }
 
 function togglePause(force) {
@@ -331,113 +387,202 @@ function togglePause(force) {
 /* shop */
 /* initialised on the first render rather than at load, because the ability
    catalogue lives in a file that loads after this one */
-let shopCat = null;
-const CAT_NOTES = {
-  Impact: "Reads the shove: weight, distance, and what the body hits. These turn knockback into a damage source, so they want each other and they want walls.",
-  Brand: "A mark economy. One generator, two payoffs, one sustain engine — and only three slots, so a pure brand loadout has to give one of them up.",
-  Tempo: "Time. Each of these makes something else you brought fire more often, which is why two-and-one usually beats three of a kind.",
-};
-function railButton(label, owned, total, sel, onclick) {
-  const b = document.createElement("button");
-  if (sel) b.classList.add("sel");
-  b.innerHTML = label + "<small>" + owned + "/" + total + "</small>";
-  b.onclick = onclick;
-  return b;
+let shopCat = null, shopMode = "abil";
+/* the ability waiting for a slot, when all three are full */
+let loadoutPick = null;
+
+/* ---------------- Loadout / Collection ----------------------------------
+   One screen, two modes. It used to be a single "Echo Lab" that listed every
+   ability as a full-width row with two paragraphs of prose on it — accurate,
+   well written, and completely unreadable as a shop. Nobody reads twelve
+   paragraphs to pick three abilities; they look at a grid, read four words
+   per card, and click.
+
+   The prose did not get deleted, it got demoted: the card carries the name,
+   what kind of thing it is, and its one-line mechanic. The full description
+   and the synergy note appear on the card you have selected, which is the
+   only one you are actually reading. */
+
+/* The first sentence of a description is always the mechanic — the rest is
+   colour, and colour belongs on the expanded card. Split on a full stop that
+   actually ends a sentence (followed by a space and a capital, or the end of
+   the string) rather than on the first period: half these descriptions quote
+   a number like "1.8 seconds" and a naive split cuts them mid-figure. */
+function firstLine(txt) {
+  const t = String(txt || "");
+  const m = t.match(/^.*?[.!?](?=\s+[A-Z(]|$)/);
+  return m ? m[0] : t;
 }
-function renderShop() {
-  if (shopCat == null) shopCat = ABIL_FAMS[0];
+let labOpen = null;
+
+function renderShop(mode) {
+  if (mode) shopMode = mode;
+  const abil = shopMode !== "cos";
+  $("#labTitle").textContent = abil ? "Loadout" : "Collection";
+  $("#labSub").textContent = abil
+    ? "Twelve abilities. You carry three."
+    : "Trails, decoys, palettes and blasts.";
   $("#shopBalance").textContent = fmt(SAVE.shards);
   stopPreviews();
-  const rail = $("#shopRail");
-  rail.innerHTML = "";
-  ABIL_FAMS.forEach((f) => {
-    const list = ABIL.filter((a) => a.fam === f);
-    rail.appendChild(railButton(f,
-      list.filter((a) => abilOwned(a.id)).length, list.length,
-      f === shopCat, () => { shopCat = f; Audio_.ui(); renderShop(); }));
+
+  const tabs = $("#shopRail");
+  tabs.innerHTML = "";
+  const groups = abil
+    ? ABIL_FAMS.map((f) => ({ key: f, label: f,
+        own: ABIL.filter((a) => a.fam === f && abilOwned(a.id)).length,
+        all: ABIL.filter((a) => a.fam === f).length }))
+    : COSM_GROUPS.map((g) => ({ key: g.label, label: g.label,
+        own: COSM.filter((c) => c.g === g.key && owns(c.id)).length,
+        all: COSM.filter((c) => c.g === g.key).length }))
+      /* The Archive lives here rather than on its own screen. Lore entries
+         are granted as Trophy Road rewards and there was no route to read
+         them anywhere in the game — a reward you cannot collect. They are
+         things you have unlocked, which is what this screen is. */
+      .concat([{ key: "Archive", label: "Archive",
+        own: LORE.filter(loreUnlocked).length, all: LORE.length }]);
+  if (!groups.some((g) => g.key === shopCat)) shopCat = groups[0].key;
+  groups.forEach((g) => {
+    const b = document.createElement("button");
+    b.className = "labtab" + (g.key === shopCat ? " on" : "");
+    b.innerHTML = "<span>" + g.label + "</span><em>" + g.own + "/" + g.all + "</em>";
+    b.onclick = () => { shopCat = g.key; labOpen = null; uiSfx("move"); renderShop(); };
+    b.addEventListener("mouseenter", () => uiSfx("hover"));
+    tabs.appendChild(b);
   });
-  COSM_GROUPS.forEach((g) => {
-    const list = COSM.filter((c) => c.g === g.key);
-    rail.appendChild(railButton(g.label,
-      list.filter((c) => owns(c.id)).length, list.length,
-      g.label === shopCat, () => { shopCat = g.label; Audio_.ui(); renderShop(); }));
-  });
-  const group = COSM_GROUPS.find((g) => g.label === shopCat);
-  $("#shopNote").textContent = group ? group.note : (CAT_NOTES[shopCat] || "");
+
+  /* the three slots, always visible in ability mode — they are the whole
+     point of the screen, so they are not a row you scroll past */
+  const slots = $("#labSlots");
+  slots.innerHTML = "";
+  slots.style.display = abil ? "" : "none";
+  if (abil) {
+    equippedAbilities().forEach((a, i) => {
+      const el = document.createElement("button");
+      el.className = "slot" + (a ? " filled" : "") + (loadoutPick ? " picking" : "");
+      el.innerHTML = '<span class="slot-n">' + (i + 1) + "</span>" +
+        (a ? '<span class="slot-name">' + a.name + "</span><span class=\"slot-tag\">" + (a.tag || a.fam) + "</span>"
+           : '<span class="slot-name empty">Empty</span><span class="slot-tag">tap an ability</span>');
+      el.onclick = () => {
+        if (loadoutPick) { abilEquip(loadoutPick, i); loadoutPick = null; uiSfx("confirm"); }
+        else if (a) { abilUnequip(i); uiSfx("off"); }
+        buildAbilities(); renderShop();
+      };
+      el.addEventListener("mouseenter", () => uiSfx("hover"));
+      slots.appendChild(el);
+    });
+  }
+
   const stock = $("#shopStock");
   stock.innerHTML = "";
-  stock.className = group ? "stock grid" : "stock";
-  if (group) renderCosmetics(stock, group);
-  else renderAbilities(stock);
+  stock.className = "lab-grid" + (abil ? "" : " cos");
+  if (abil) renderAbilityCards(stock);
+  else if (shopCat === "Archive") renderArchiveCards(stock);
+  else renderCosmeticCards(stock);
   refreshHome();
 }
-/* ---- the loadout -------------------------------------------------------
-   Three slots across the top, the family's abilities under them. Buying an
-   ability does not equip it; equipping is a separate, free, reversible act,
-   because the interesting decision is which three you carry TODAY and not
-   which twelve you own. Slot order is also the keybinding (1-3). */
-function renderLoadout(stock) {
-  const bar = document.createElement("div");
-  bar.className = "loadout";
-  const eq = equippedAbilities();
-  for (let i = 0; i < ABIL_SLOTS; i++) {
-    const a = eq[i];
-    const cell = document.createElement("div");
-    cell.className = "slot" + (a ? " filled" : "") + (loadoutPick != null ? " picking" : "");
-    cell.innerHTML = '<span class="sk">' + (i + 1) + "</span>" +
-      (a ? "<h4>" + a.name + "</h4><small>" + a.fam + " · " + (a.kind === "active" ? "active" : "passive") + "</small>"
-         : "<h4>empty</h4><small>choose below</small>");
-    cell.onclick = () => {
-      if (loadoutPick != null) { abilEquip(loadoutPick, i); loadoutPick = null; Audio_.confirm(); buildAbilities(); renderShop(); return; }
-      if (a) { abilUnequip(i); Audio_.ui(); buildAbilities(); renderShop(); }
-    };
-    bar.appendChild(cell);
-  }
-  stock.appendChild(bar);
-  const hint = document.createElement("p");
-  hint.className = "loadout-hint";
-  hint.textContent = loadoutPick
-    ? "Pick a slot for " + abilOf(loadoutPick).name + "."
-    : "Three slots. Click an owned ability to equip it, or a slot to clear it. Slot number is its key in the chamber.";
-  stock.appendChild(hint);
-}
-let loadoutPick = null;
-function renderAbilities(stock) {
-  renderLoadout(stock);
+
+function renderAbilityCards(stock) {
   ABIL.filter((a) => a.fam === shopCat).forEach((a) => {
     const owned = abilOwned(a.id), slot = abilSlotOf(a.id);
     const afford = SAVE.shards >= a.cost;
-    const row = document.createElement("div");
-    row.className = "item ability-item" + (slot >= 0 ? " equipped" : "");
-    row.innerHTML = "<div><h3>" + a.name +
-      '<span class="mod-tag">' + (a.kind === "active" ? "active · " + a.cd + "s" : "passive") + "</span>" +
-      (a.tag ? '<span class="mod-tag alt">' + a.tag + "</span>" : "") + "</h3>" +
-      "<p>" + a.desc + "</p>" +
-      '<p class="syn"><b>Pairs with</b> ' + a.synergy + "</p></div>" +
-      '<button class="buy' + (owned ? " maxed" : "") + '"' + (!owned && !afford ? " disabled" : "") + ">" +
-      (owned ? (slot >= 0 ? "Slot " + (slot + 1) : "Equip") : (a.cost ? '<i class="shard"></i>' + fmt(a.cost) : "Free")) +
-      "</button>";
-    row.querySelector("button").onclick = () => {
+    const open = labOpen === a.id;
+    const card = document.createElement("div");
+    card.className = "card" + (slot >= 0 ? " equipped" : "") + (owned ? " owned" : "") + (open ? " open" : "");
+    card.innerHTML =
+      '<span class="card-fam">' + a.fam + "</span>" +
+      "<h4>" + a.name + "</h4>" +
+      '<span class="card-tag">' + (a.kind === "active" ? "Active · " + a.cd + "s" : "Passive") +
+        (a.tag ? " · " + a.tag : "") + "</span>" +
+      '<p class="card-line">' + (open ? a.desc : firstLine(a.desc)) + "</p>" +
+      (open ? '<p class="card-syn"><b>Pairs with</b> ' + a.synergy + "</p>" : "") +
+      '<div class="card-foot"></div>';
+    const foot = card.querySelector(".card-foot");
+    const btn = document.createElement("button");
+    btn.className = "card-btn" + (slot >= 0 ? " on" : owned ? " have" : afford ? "" : " poor");
+    btn.textContent = slot >= 0 ? "Slot " + (slot + 1)
+      : owned ? "Equip" : a.cost ? fmt(a.cost) : "Free";
+    if (!owned && a.cost) btn.innerHTML = '<i class="ic-shard"></i>' + fmt(a.cost);
+    btn.onclick = (e) => {
+      e.stopPropagation();
       if (!owned) {
-        if (SAVE.shards < a.cost) { Audio_.deny(); return; }
+        if (SAVE.shards < a.cost) { uiSfx("deny"); toast("Not enough shards", "var(--threat)"); return; }
         SAVE.shards -= a.cost; abilSave().owned[a.id] = 1; persist();
-        Audio_.buy(); toast(a.name + " acquired", "var(--chrono)");
-        renderShop();
-        return;
+        Audio_.buy(); toast(a.name + " unlocked", "var(--chrono)");
+        renderShop(); return;
       }
-      if (slot >= 0) { abilUnequip(slot); Audio_.ui(); }
+      if (slot >= 0) { abilUnequip(slot); uiSfx("off"); }
       else {
-        /* drop it in the first free slot, or ask which one to replace */
-        const free = abilSave().slots.indexOf(null);
-        const firstEmpty = free >= 0 ? free : abilSave().slots.findIndex((x) => !x);
-        if (firstEmpty >= 0) { abilEquip(a.id, firstEmpty); Audio_.confirm(); }
-        else { loadoutPick = a.id; Audio_.ui(); }
+        const free = abilSave().slots.findIndex((x) => !x);
+        if (free >= 0) { abilEquip(a.id, free); uiSfx("confirm"); }
+        else { loadoutPick = a.id; uiSfx("move"); toast("Pick a slot to replace"); }
       }
       buildAbilities(); renderShop();
     };
-    stock.appendChild(row);
+    foot.appendChild(btn);
+    card.onclick = () => { labOpen = open ? null : a.id; uiSfx("hover"); renderShop(); };
+    stock.appendChild(card);
   });
 }
+
+/* The archive as cards. A locked entry shows its section and title redacted
+   rather than being hidden, so the shape of the story is visible before the
+   story is — which is the same rule the road follows for locked levels. */
+function renderArchiveCards(stock) {
+  stock.className = "lab-grid lore";
+  LORE.forEach((l) => {
+    const open = loreUnlocked(l);
+    const isOpen = labOpen === l.id && open;
+    const card = document.createElement("div");
+    card.className = "card lorecard" + (open ? " owned" : " sealed") + (isOpen ? " open" : "");
+    /* the sealed marker rides the section line rather than being a second
+       label at the bottom of the card — two states on one card need one
+       place to say which state it is in */
+    card.innerHTML =
+      '<span class="card-fam">' + (open ? l.sec : "Sealed · " + l.sec) + "</span>" +
+      "<h4>" + (open ? l.title : redact(l.title)) + "</h4>" +
+      '<p class="card-line">' + (open ? (isOpen ? l.body : firstLine(l.body)) : redact(l.body.slice(0, 90))) + "</p>";
+    if (open) card.onclick = () => { labOpen = isOpen ? null : l.id; uiSfx("hover"); renderShop(); };
+    stock.appendChild(card);
+  });
+}
+function renderCosmeticCards(stock) {
+  const group = COSM_GROUPS.find((g) => g.label === shopCat) || COSM_GROUPS[0];
+  COSM.filter((c) => c.g === group.key).forEach((item) => {
+    const have = owns(item.id), on = SAVE.cosmetics[group.key] === item.id;
+    const afford = SAVE.shards >= item.cost;
+    const card = document.createElement("div");
+    card.className = "card cos" + (on ? " equipped" : "") + (have ? " owned" : "");
+    const cvs = document.createElement("canvas");
+    cvs.className = "card-prev";
+    card.appendChild(cvs);
+    const body = document.createElement("div");
+    body.className = "card-body";
+    body.innerHTML = "<h4>" + item.name + "</h4>" +
+      '<p class="card-line">' + item.desc + "</p>";
+    card.appendChild(body);
+    const btn = document.createElement("button");
+    btn.className = "card-btn" + (on ? " on" : have ? " have" : afford ? "" : " poor");
+    btn.textContent = on ? "Equipped" : have ? "Equip" : item.cost ? "" : "Free";
+    if (!have && item.cost) btn.innerHTML = '<i class="ic-shard"></i>' + fmt(item.cost);
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      if (!have) {
+        if (SAVE.shards < item.cost) { uiSfx("deny"); toast("Not enough shards", "var(--threat)"); return; }
+        SAVE.shards -= item.cost; SAVE.cosmetics.owned[item.id] = 1; persist();
+        Audio_.buy(); toast(item.name + " unlocked", "var(--chrono)");
+      }
+      equipCosmetic(item);
+      renderShop();
+    };
+    card.appendChild(btn);
+    stock.appendChild(card);
+    /* makePreview BUILDS a preview; the animation loop only draws what is in
+       `previews`, so the return value is the whole point of calling it */
+    previews.push(makePreview(cvs, item));
+  });
+  startPreviews();
+}
+
 function equipCosmetic(item) {
   if (item.g === "palette") setTheme(item.id.slice(4));
   else { SAVE.cosmetics[item.g] = item.id; syncCosmetics(); persist(); }
@@ -445,48 +590,6 @@ function equipCosmetic(item) {
   renderShop();
   toast(item.name + " equipped", "var(--signal)");
 }
-function renderCosmetics(stock, group) {
-  COSM.filter((c) => c.g === group.key).forEach((item) => {
-    const has = owns(item.id);
-    const on = group.key === "palette" ? TH.id === item.id.slice(4) : SAVE.cosmetics[group.key] === item.id;
-    const el = document.createElement("div");
-    el.className = "cosm" + (on ? " on" : "");
-    el.style.setProperty("--c", group.col);
-    const cvs = document.createElement("canvas");
-    el.appendChild(cvs);
-    const body = document.createElement("div");
-    body.innerHTML = "<b>" + item.name + "</b><p>" + item.desc + "</p>";
-    el.appendChild(body);
-    const row = document.createElement("div");
-    row.className = "row";
-    const state = document.createElement("span");
-    state.className = "state";
-    state.textContent = on ? "Equipped" : has ? "Installed" : item.cost ? "Locked" : "Free";
-    row.appendChild(state);
-    const btn = document.createElement("button");
-    btn.className = "pill" + (has ? " equip" : "");
-    if (on) { btn.textContent = "In use"; btn.disabled = true; }
-    else if (has) { btn.textContent = "Equip"; btn.onclick = () => equipCosmetic(item); }
-    else {
-      btn.innerHTML = '<i class="shard"></i>' + fmt(item.cost);
-      btn.disabled = SAVE.shards < item.cost;
-      btn.onclick = () => {
-        if (SAVE.shards < item.cost) { Audio_.deny(); return; }
-        SAVE.shards -= item.cost;
-        SAVE.cosmetics.owned[item.id] = 1;
-        persist(); Audio_.buy();
-        equipCosmetic(item);
-      };
-    }
-    row.appendChild(btn);
-    el.appendChild(row);
-    stock.appendChild(el);
-    previews.push(makePreview(cvs, item));
-  });
-  startPreviews();
-}
-
-/* ---- live cosmetic previews: the shop runs the same renderers the game does ---- */
 let previews = [], previewRaf = 0, previewLast = 0;
 function stopPreviews() { if (previewRaf) cancelAnimationFrame(previewRaf); previewRaf = 0; previews = []; }
 function startPreviews() {
@@ -640,7 +743,10 @@ function openDraft() {
   }
   draftOptions = picks;
   G.drafting = true;
-  $("#draftEyebrow").textContent = G.survival ? "Wave " + G.wave + " held" : curLevel().name + " cleared";
+  /* the draft moved from level clear to wave clear, and the copy did not
+     follow it — it was telling the player the level was over halfway
+     through the level */
+  $("#draftEyebrow").textContent = "Wave " + G.wave + " cleared";
   const list = $("#coreList");
   list.innerHTML = "";
   picks.forEach((c, i) => {
@@ -668,49 +774,88 @@ function chooseCore(i) {
   nextLevel();
 }
 /* settings */
+/* ---------------- Settings ----------------------------------------------
+   Eleven settings became eight, grouped, with the hint text cut to a few
+   words each. What went: "Grain and scanlines" and "Glow" folded into one
+   Reduced effects switch (they are the same request — make it calmer — and
+   nobody toggles film grain independently), and every hint that explained
+   the game rather than the setting.
+
+   What arrived: fullscreen, which a browser game needs and did not have. */
 const SETTINGS_DEF = [
-  { id: "theme", label: "Palette", hint: "Cycles the palettes you own. T does the same thing anywhere.", type: "theme" },
-  { id: "brightness", label: "Brightness", hint: "Overall screen brightness", type: "range" },
-  { id: "autofire", label: "Auto-fire", hint: "Accessibility assist: the pulse cannon runs itself. Off by default — the trigger is yours unless you turn this on", type: "toggle" },
-  { id: "aimassist", label: "Aim assist", hint: "Accessibility assist: snaps your aim to whatever you are already pointing near, and locks on entirely on touch. Off by default", type: "toggle" },
-  { id: "boot", label: "Boot sequence", hint: "Play the chamber diagnostic when the game opens", type: "toggle" },
-  { id: "master", label: "Master volume", hint: "Everything you hear", type: "range" },
-  { id: "music", label: "Music", hint: "The score writes itself as you play and follows the pressure", type: "range" },
-  { id: "sfx", label: "Effects", hint: "Weapons, impacts, interface", type: "range" },
-  { id: "shake", label: "Screen shake", hint: "Turn down if the camera movement bothers you", type: "range" },
-  { id: "bloom", label: "Glow", hint: "Soft light bleed around bright things", type: "toggle" },
-  { id: "grain", label: "Grain and scanlines", hint: "Texture over the whole screen", type: "toggle" },
+  { group: "Audio" },
+  { id: "master", label: "Master", type: "range" },
+  { id: "music", label: "Music", type: "range" },
+  { id: "sfx", label: "Effects", type: "range" },
+  { group: "Display" },
+  { id: "fullscreen", label: "Fullscreen", type: "fullscreen" },
+  { id: "brightness", label: "Brightness", type: "range" },
+  { id: "shake", label: "Screen shake", type: "range" },
+  { id: "reduced", label: "Reduced effects", hint: "Less glow, grain and motion", type: "toggle" },
+  { id: "theme", label: "Palette", type: "theme" },
+  { group: "Assists" },
+  { id: "autofire", label: "Auto-fire", hint: "The gun runs itself", type: "toggle" },
+  { id: "aimassist", label: "Aim assist", hint: "Snaps to nearby targets", type: "toggle" },
 ];
+function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function toggleFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (isFullscreen()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+    else (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  } catch (e) { /* some embeds disallow it; the button simply does nothing */ }
+}
 function renderSettings() {
   const body = $("#settingsBody");
   body.innerHTML = "";
   for (const s of SETTINGS_DEF) {
+    if (s.group) {
+      const h = document.createElement("div");
+      h.className = "set-group";
+      h.textContent = s.group;
+      body.appendChild(h);
+      continue;
+    }
     const row = document.createElement("div");
     row.className = "setting";
+    const label = "<div><b>" + s.label + "</b>" + (s.hint ? "<small>" + s.hint + "</small>" : "") + "</div>";
     if (s.type === "range") {
-      row.innerHTML = "<div><b>" + s.label + "</b><small>" + s.hint + "</small></div>" +
+      row.innerHTML = label +
         '<input type="range" min="0" max="1" step="0.05" value="' + SAVE.settings[s.id] + '" aria-label="' + s.label + '">';
       const inp = row.querySelector("input");
       inp.oninput = () => { SAVE.settings[s.id] = parseFloat(inp.value); applySettings(); persist(); };
-      inp.onchange = () => Audio_.ui();
+      inp.onchange = () => uiSfx("move");
     } else if (s.type === "theme") {
-      row.innerHTML = "<div><b>" + s.label + "</b><small>" + s.hint + "</small></div>" +
-        '<button class="toggle on"><i></i>' + TH.label + "</button>";
-      row.querySelector("button").onclick = () => { setTheme(nextPalette()); renderSettings(); };
+      row.innerHTML = label + '<button class="toggle on"><i></i>' + TH.label + "</button>";
+      row.querySelector("button").onclick = () => { setTheme(nextPalette()); uiSfx("move"); renderSettings(); };
+    } else if (s.type === "fullscreen") {
+      const on = isFullscreen();
+      row.innerHTML = label + '<button class="toggle' + (on ? " on" : "") + '"><i></i>' + (on ? "On" : "Off") + "</button>";
+      row.querySelector("button").onclick = () => {
+        toggleFullscreen(); uiSfx("on");
+        setTimeout(renderSettings, 180);
+      };
     } else {
       const on = !!SAVE.settings[s.id];
-      row.innerHTML = "<div><b>" + s.label + "</b><small>" + s.hint + "</small></div>" +
-        '<button class="toggle' + (on ? " on" : "") + '"><i></i>' + (on ? "On" : "Off") + "</button>";
+      row.innerHTML = label + '<button class="toggle' + (on ? " on" : "") + '"><i></i>' + (on ? "On" : "Off") + "</button>";
       row.querySelector("button").onclick = () => {
         SAVE.settings[s.id] = SAVE.settings[s.id] ? 0 : 1;
-        persist(); Audio_.ui(); applySettings(); renderSettings();
+        persist(); uiSfx(SAVE.settings[s.id] ? "on" : "off"); applySettings(); renderSettings();
       };
     }
     body.appendChild(row);
   }
 }
 function applySettings() {
-  document.body.classList.toggle("no-grain", !SAVE.settings.grain);
+  /* One switch, three effects: the film grain and scanlines, the bloom, and
+     every non-essential interface animation (see body.reduced in ui.css).
+     They were three separate toggles that people either all wanted or all
+     did not. */
+  const red = !!SAVE.settings.reduced;
+  SAVE.settings.grain = red ? 0 : 1;
+  SAVE.settings.bloom = red ? 0 : 1;
+  document.body.classList.toggle("reduced", red);
+  document.body.classList.toggle("no-grain", red);
   const b = SAVE.settings.brightness == null ? .5 : SAVE.settings.brightness;
   $("#app").style.filter = "brightness(" + (0.6 + b * 0.8).toFixed(2) + ")";
   Audio_.applyVolumes();

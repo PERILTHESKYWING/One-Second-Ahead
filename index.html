@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>One Second Ahead</title>
 <link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/ui.css" />
 </head>
 <body data-theme="dark">
 <div id="app">
@@ -33,6 +34,16 @@
     <button class="tbtn echo" data-act="echo">ECHO</button>
   </div>
   <div id="toast"></div>
+  <div id="wipe"><i></i><i></i></div>
+  <div id="tutor">
+    <div class="tut-card">
+      <span class="tut-step" id="tutStep">1 / 6</span>
+      <b id="tutTitle">MOVE</b>
+      <span class="tut-sub" id="tutSub">W A S D</span>
+      <span class="tut-hint" id="tutHint"></span>
+    </div>
+    <button class="tut-skip" id="tutSkip">Skip tutorial</button>
+  </div>
   <button id="opsLink" title="facility access">◈ operator</button>
 
   <section class="screen" id="boot">
@@ -45,43 +56,48 @@
   </section>
 
   <section class="screen" id="home">
-    <div class="wordmark">
-      <span class="ghost a"><span class="l1">ONE SECOND</span><span class="l2">AHEAD</span></span>
-      <span class="ghost b"><span class="l1">ONE SECOND</span><span class="l2">AHEAD</span></span>
-      <span class="l1">ONE SECOND</span><span class="l2">AHEAD</span>
-    </div>
-    <div></div>
-    <div class="bottom">
-      <nav class="menu" id="mainMenu">
-        <button class="menu-item sel" data-go="play"><i class="glyph"></i><span class="label">Branches<small class="sub" id="menuPlaySub">Five timelines, one hull</small></span><span class="k">Enter</span></button>
-        <button class="menu-item" data-go="survival"><i class="glyph"></i><span class="label">Survival<small class="sub" id="menuSurvSub">Endless waves, nothing to reach</small></span><span class="k">V</span></button>
-        <button class="menu-item" data-go="shop"><i class="glyph"></i><span class="label">Echo Lab<small class="sub" id="menuShards">Permanent upgrades</small></span><span class="k">L</span></button>
-        <button class="menu-item" data-go="submenu"><i class="glyph"></i><span class="label">Menu<small class="sub">How to play, and the options</small></span><span class="k">M</span></button>
-      </nav>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:16px">
-        <button class="themeSwap" id="themeSwap"><i></i><span>Daylight</span></button>
-        <div class="records">
-          <div class="rec"><b id="recTrophies">—</b><span>trophies</span></div>
-          <div class="rec"><b id="recLevel">—</b><span>furthest level</span></div>
-          <div class="rec"><b id="recWave">—</b><span>best wave</span></div>
-          <div class="rec"><b id="recScore">—</b><span>best score</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
+    <div class="home-grad"></div>
+    <div class="home-in">
+      <header class="brand">
+        <span class="brand-kicker">Chamber 09 · temporal test article</span>
+        <h1 class="wordmark">
+          <span class="l1">ONE SECOND</span>
+          <span class="l2">AHEAD</span>
+        </h1>
+      </header>
 
-  <section class="screen" id="submenu">
-    <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>Menu</h2><p>Controls, the bestiary, and how loud and bright this all gets.</p></div></div>
-      <nav class="menu" id="submenuMenu" style="max-width:420px">
-        <button class="menu-item sel" data-go="guide"><i class="glyph"></i><span class="label">How to play<small class="sub">Controls and enemies</small></span></button>
-        <button class="menu-item" data-go="settings"><i class="glyph"></i><span class="label">Settings<small class="sub">Sound, light, effects</small></span></button>
-      </nav>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span></div>
-        <button class="btn" data-go="home">Back to menu</button>
+      <div class="home-actions">
+        <button class="play" id="playBtn">
+          <span class="play-glow"></span>
+          <span class="play-main">PLAY</span>
+          <span class="play-sub" id="playSub">Start here</span>
+        </button>
+
+        <nav class="tiles">
+          <button class="tile" data-go="road">
+            <i class="ic-road"></i><span>Trophy Road</span>
+          </button>
+          <button class="tile" data-go="loadout">
+            <i class="ic-chip"></i><span>Loadout</span>
+          </button>
+          <button class="tile" data-go="collection">
+            <i class="ic-gem"></i><span>Collection</span>
+          </button>
+          <button class="tile" data-go="settings">
+            <i class="ic-gear"></i><span>Settings</span>
+          </button>
+        </nav>
       </div>
+
+      <footer class="home-foot" id="homeProg">
+        <div class="hprog">
+          <span class="hprog-top"><b id="homeDone">0</b> / <span id="homeTotal">75</span> levels cleared</span>
+          <span class="hbar"><i id="homeBar"></i></span>
+        </div>
+        <div class="hstat"><i class="ic-trophy"></i><b id="homeTro">0</b></div>
+        <button class="ghostbtn" data-go="survival">Endless</button>
+        <button class="ghostbtn" data-go="guide">Help</button>
+      </footer>
     </div>
   </section>
 
@@ -94,30 +110,14 @@
 
   <section class="screen" id="timelines">
     <div class="scrim"></div>
-    <div class="panel wide">
-      <div class="panel-head">
-        <div><h2>Space-time</h2><p>Five recorded timelines, fifteen levels each. Clear a level to open the next one; clear a branch to bring the next branch online. Every level keeps your best result forever.</p></div>
-        <div class="road-total"><b id="roadTrophies">0</b><span>trophies banked</span></div>
-      </div>
-      <div class="road" id="tlList"></div>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span><span id="roadHint"></span></div>
-        <button class="btn" data-go="home">Back to menu</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="screen" id="archive">
-    <div class="scrim"></div>
-    <div class="panel wide">
-      <div class="panel-head">
-        <div><h2>The Archive</h2><p>Everything the facility wrote down, everything it redacted, and the eight things it never wrote down at all.</p></div>
-      </div>
-      <div class="arc-wrap"><div class="rail" id="arcRail"></div><div class="arc-body" id="arcBody"></div></div>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span></div>
-        <button class="btn" data-go="home">Back to menu</button>
-      </div>
+    <div class="road-wrap">
+      <header class="road-head">
+        <button class="backbtn" data-go="home"><i class="ic-back"></i></button>
+        <div class="road-title"><h2>Trophy Road</h2><span>Clear a level to open the next</span></div>
+        <div class="road-tro"><i class="ic-trophy"></i><b id="roadTrophies">0</b></div>
+      </header>
+      <div class="road" id="roadBody"></div>
+      <div class="road-tip" id="roadTip"></div>
     </div>
   </section>
 
@@ -146,95 +146,99 @@
 
   <section class="screen" id="shop">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head">
-        <div><h2>Echo Lab</h2><p id="shopNote">Shards survive your death. Hardware, tactical modules and rendering code are all permanent once installed.</p></div>
-        <div class="balance"><i class="shard"></i><span id="shopBalance">0</span></div>
-      </div>
-      <div class="shop-body"><div class="rail" id="shopRail"></div><div class="stock" id="shopStock"></div></div>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span></div>
-        <button class="btn" data-go="home">Back to menu</button>
-      </div>
+    <div class="lab">
+      <header class="lab-head">
+        <button class="backbtn" data-go="home"><i class="ic-back"></i></button>
+        <div class="road-title"><h2 id="labTitle">Loadout</h2><span id="labSub">Carry three</span></div>
+        <div class="road-tro shards"><i class="ic-shard"></i><b id="shopBalance">0</b></div>
+      </header>
+      <div class="lab-slots" id="labSlots"></div>
+      <div class="lab-tabs" id="shopRail"></div>
+      <div class="lab-grid" id="shopStock"></div>
     </div>
   </section>
 
   <section class="screen" id="guide">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>How to play</h2><p>Move, hold to fire, and time two abilities. Entropy telegraphs every heavy attack on the floor before it lands, so the whole fight is a reading exercise.</p></div></div>
+    <div class="lab guide">
+      <header class="lab-head">
+        <button class="backbtn" data-go="home"><i class="ic-back"></i></button>
+        <div class="road-title"><h2>How to play</h2><span>Move, fire, and read the floor</span></div>
+      </header>
       <div class="guide-body">
-        <div>
-          <h4>Controls</h4>
-          <div class="ctrl"><span class="keys"><i class="k">W</i><i class="k">A</i><i class="k">S</i><i class="k">D</i></span><span>Move<em> — that's the whole movement layer</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Mouse</i></span><span>Aim<em> — the gun fires by itself and the aim snaps to what you point near</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Space</i></span><span>Dash<em> — damages what you pass through, and nothing can touch you mid-dash</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Space</i></span><span>Time-Swap<em> — with a decoy alive the same button trades places with it, and the dash steps aside</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">E</i></span><span>Echo<em> — a decoy of your last few seconds, fighting for you</em></span></div>
-          <div class="ctrl"><span class="keys"><i class="k">T</i></span><span>Switch between night and daylight</span></div>
-          <div class="ctrl"><span class="keys"><i class="k">Esc</i></span><span>Pause</span></div>
-          <ul class="tips">
-            <li>One button does both movement abilities. No decoy on the field means dash; a decoy on the field means swap. You never have to choose under pressure.</li>
-            <li>Dash <b>through</b> a crowd rather than away from it. The invulnerable window outlasts the contact, and the dash itself hurts.</li>
-            <li>Enemies chase whatever is nearest, so an echo dropped on one side splits the room in half.</li>
-            <li>Wardens hook you and shrink the room. Kill the Warden or accept the leash — the tether ring is drawn on the floor.</li>
-            <li>Revenants arrive where you were <b>heading</b>. Change direction as they blink, not after.</li>
-            <li>Hexers rotate three beams through the whole chamber. Pick the gap early and walk with it, not against it.</li>
-            <li>Howitzer brackets on the floor are shells already in the air. The ground they land on keeps burning.</li>
-            <li>Gold-crowned enemies are elites: much tougher, and one of them will be armoured, frenzied or rigged to detonate.</li>
-            <li>Kills close together fill the gold line. When it fills, surge fires on its own — you never have to watch for it.</li>
-          </ul>
+        <div class="keycard">
+          <div class="kc"><span class="kk">W A S D</span><b>Move</b></div>
+          <div class="kc"><span class="kk">Hold click</span><b>Fire</b><em>the gun aims itself</em></div>
+          <div class="kc"><span class="kk">Space</span><b>Dash</b><em>invulnerable, and it hurts what you pass through</em></div>
+          <div class="kc"><span class="kk">E</span><b>Echo</b><em>a decoy that fights and takes hits for you</em></div>
+          <div class="kc"><span class="kk">Space</span><b>Swap</b><em>with an echo alive, trade places with it</em></div>
+          <div class="kc"><span class="kk">1 2 3</span><b>Abilities</b><em>your three equipped</em></div>
+          <div class="kc"><span class="kk">Esc</span><b>Pause</b></div>
         </div>
-        <div><h4>What's out there</h4><div class="bestiary" id="bestiary"></div></div>
+        <ul class="tips">
+          <li>Every heavy attack is drawn on the floor before it lands. The fight is a reading exercise.</li>
+          <li>Dash <b>through</b> trouble, not away from it — the invulnerable window outlasts the contact.</li>
+          <li>Enemies chase whatever is nearest, so an echo dropped to one side splits the room.</li>
+          <li>Gold-crowned enemies are elites. Tougher, and each one is armoured, frenzied or rigged to blow.</li>
+          <li>Kills close together fill the gold line. When it fills, surge fires on its own.</li>
+        </ul>
+        <h4>What's out there</h4>
+        <div class="bestiary" id="bestiary"></div>
       </div>
-      <div class="panel-foot"><div class="keys"><span><i class="k">Esc</i> back</span></div><button class="btn" data-go="home">Back to menu</button></div>
     </div>
   </section>
 
   <section class="screen" id="settings">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>Settings</h2><p>Saved on this machine along with your shards and upgrades.</p></div></div>
+    <div class="lab set">
+      <header class="lab-head">
+        <button class="backbtn" data-go="home"><i class="ic-back"></i></button>
+        <div class="road-title"><h2>Settings</h2><span>Saved on this device</span></div>
+      </header>
       <div class="settings-body" id="settingsBody"></div>
-      <div class="panel-foot">
-        <div class="keys"><span><i class="k">Esc</i> back</span></div>
-        <div style="display:flex;gap:12px">
-          <button class="btn" id="wipeSave">Erase all progress</button>
-          <button class="btn" data-go="home">Back to menu</button>
-        </div>
+      <div class="set-foot">
+        <button class="btn-ghost danger" id="wipeSave">Erase all progress</button>
       </div>
     </div>
   </section>
 
   <section class="screen" id="pause">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="panel-head"><div><h2>Paused</h2><p id="pauseLine">Level 1</p></div></div>
-      <nav class="menu" id="pauseMenu" style="max-width:420px">
-        <button class="menu-item sel" data-go="resume"><i class="glyph"></i><span class="label">Resume<small class="sub">Back into it</small></span><span class="k">Esc</span></button>
-        <button class="menu-item" data-go="guide"><i class="glyph"></i><span class="label">How to play<small class="sub">Controls and enemies</small></span></button>
-        <button class="menu-item" data-go="settings"><i class="glyph"></i><span class="label">Settings<small class="sub">Sound and light</small></span></button>
-        <button class="menu-item" data-go="abandon"><i class="glyph"></i><span class="label">Abandon run<small class="sub">You keep the shards you've collected</small></span></button>
-      </nav>
+    <div class="pause">
+      <span class="lr-kicker" id="pauseLine">Level 1</span>
+      <h2>PAUSED</h2>
+      <div class="pause-acts">
+        <button class="btn-primary" data-go="resume"><span>RESUME</span></button>
+        <div class="pause-minor">
+          <button class="btn-ghost" data-go="guide">How to play</button>
+          <button class="btn-ghost" data-go="settings">Settings</button>
+        </div>
+        <button class="linkbtn" data-go="abandon">Quit to menu</button>
+      </div>
     </div>
   </section>
 
   <section class="screen" id="results">
     <div class="scrim"></div>
-    <div class="panel">
-      <div id="newBestWrap"></div>
-      <div class="result-label" id="resultTitle">Timeline broken</div>
-      <div class="result-score" id="resultScore">0</div>
-      <div class="stat-grid">
-        <div class="stat"><b id="resLevel">1</b><span id="resLevelLabel">level reached</span></div>
-        <div class="stat"><b id="resKills">0</b><span>kills</span></div>
-        <div class="stat"><b id="resTime">0:00</b><span>survived</span></div>
-        <div class="stat"><b id="resShards" class="gold">0</b><span>shards banked</span></div>
+    <div class="lr">
+      <div class="lr-head">
+        <span class="lr-kicker" id="resultTitle">Endless</span>
+        <h2 class="lr-title" id="resultHead">RUN OVER</h2>
       </div>
-      <div class="actions">
-        <button class="btn primary" data-go="again">Run again</button>
-        <button class="btn" data-go="shop">Spend shards</button>
-        <button class="btn" data-go="home">Main menu</button>
+      <div class="lr-tro">
+        <b id="resultScore">0</b><span>score</span>
+        <div class="lr-bonus" id="newBestWrap"></div>
+      </div>
+      <div class="lr-stats">
+        <div class="lr-stat"><b id="resLevel">1</b><span id="resLevelLabel">wave reached</span></div>
+        <div class="lr-stat"><b id="resKills">0</b><span>kills</span></div>
+        <div class="lr-stat"><b id="resTime">0:00</b><span>survived</span></div>
+        <div class="lr-stat"><b id="resShards">0</b><span>shards</span></div>
+      </div>
+      <div class="lr-actions">
+        <button class="btn-primary" data-go="again"><span>RUN AGAIN</span></button>
+        <button class="btn-ghost" data-go="road">Trophy Road</button>
+        <button class="btn-ghost" data-go="home">Main menu</button>
       </div>
     </div>
   </section>
@@ -253,25 +257,33 @@
 
   <section class="screen" id="levelResult">
     <div class="scrim"></div>
-    <div class="panel">
-      <div class="result-label" id="lrEyebrow">Chamber 09 · level 1</div>
-      <div class="lr-title" id="lrTitle">Level cleared</div>
-      <div class="lr-trophy">
-        <b id="lrTrophies">0</b><span>trophies this attempt</span>
+    <div class="lr">
+      <div class="lr-head">
+        <span class="lr-kicker" id="lrEyebrow">Chamber 09 · Level 1</span>
+        <h2 class="lr-title" id="lrTitle">LEVEL COMPLETE</h2>
+      </div>
+
+      <div class="lr-tro">
+        <i class="ic-trophy"></i>
+        <b id="lrTrophies">0</b>
+        <span id="lrBest">best 0</span>
         <div class="lr-bonus" id="lrBonus"></div>
       </div>
-      <div class="lr-best" id="lrBest"></div>
-      <div class="stat-grid">
-        <div class="stat"><b id="lrKills">0</b><span>kills</span></div>
-        <div class="stat"><b id="lrTime">0:00</b><span>clear time</span></div>
-        <div class="stat"><b id="lrHits">0</b><span>hits taken</span></div>
-        <div class="stat"><b id="lrShards" class="gold">0</b><span>shards banked</span></div>
+
+      <div class="lr-stats">
+        <div class="lr-stat"><b id="lrScore">0</b><span>score</span></div>
+        <div class="lr-stat"><b id="lrTime">0:00</b><span>time</span></div>
+        <div class="lr-stat"><b id="lrKills">0</b><span>kills</span></div>
+        <div class="lr-stat"><b id="lrHits">0</b><span>hits taken</span></div>
       </div>
+
       <div class="lr-rewards" id="lrRewards"></div>
-      <div class="actions">
-        <button class="btn primary" id="lrNext">Next level</button>
-        <button class="btn" id="lrRetry">Replay</button>
-        <button class="btn" data-go="timelines">Space-time map</button>
+      <div class="lr-unlock" id="lrUnlock"></div>
+
+      <div class="lr-actions">
+        <button class="btn-primary" id="lrNext"><span>NEXT LEVEL</span></button>
+        <button class="btn-ghost" id="lrRetry">Replay</button>
+        <button class="btn-ghost" data-go="road">Trophy Road</button>
       </div>
     </div>
   </section>
@@ -281,7 +293,7 @@
     <div class="sheet">
       <div class="eyebrow" id="draftEyebrow">Level cleared</div>
       <h3 id="draftTitle">Pick a core</h3>
-      <p class="hook">It lasts until this run ends.</p>
+      <p class="hook">It lasts until this level ends.</p>
       <div class="cores" id="coreList"></div>
     </div>
   </div>
@@ -304,5 +316,7 @@
 <script src="js/14-branch-shell.js"></script>
 <script src="js/15-branch-wiring.js"></script>
 <script src="js/16-abilities.js"></script>
+<script src="js/17-road.js"></script>
+<script src="js/18-shell.js"></script>
 </body>
 </html>
